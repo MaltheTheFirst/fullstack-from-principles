@@ -1,0 +1,15 @@
+.item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.details {
+    margin: 0;
+    flex: 1;
+}
+
+.actions {
+    display: flex;
+    margin: var(--space-sm);
+}

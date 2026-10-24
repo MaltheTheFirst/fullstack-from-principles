@@ -1,0 +1,20 @@
+.controls {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search {
+    min-height: var(--control-height);
+    padding: 0 var(--space-sm);
+    border-radius: var(--radius);
+    flex: 1;
+    min-width: 12rem;
+}
+
+.select {
+    min-height: var(--control-height);
+    padding: 0 var(--space-sm);
+    border-radius: var(--radius);
+}
