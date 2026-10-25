@@ -9,24 +9,26 @@ import '../App.css'
 
 function CatchLogPage() {
     const { 
-			catches,
-			formState, 
-			handleCancelEdit,
-			handleEdit,
-			handleDelete,
-			handleSubmit,
-			handleFishChange,
-			handleLengthChange,
-			fishInputRef, 
-			lengthInputRef,
-			search,
-			setSearch,
-			sortOrder,
-			setSortOrder,
-			filteredCatches,
-			sortedCatches,
-			longestCatch
-		} = useCatchLog()
+        catches,
+        formState, 
+        handleCancelEdit,
+        handleEdit,
+        handleDelete,
+        handleSubmit,
+        handleFishChange,
+        handleLengthChange,
+        fishInputRef, 
+        lengthInputRef,
+        search,
+        setSearch,
+        sortOrder,
+        setSortOrder,
+        filteredCatches,
+        sortedCatches,
+        longestCatch,
+        isCreating,
+        createError
+    } = useCatchLog()
 
     const [unit, setUnit] = useState<"cm" | "in">("cm")
 
@@ -90,6 +92,8 @@ function CatchLogPage() {
                 fishInputRef={fishInputRef}
                 lengthInputRef={lengthInputRef}
                 errors={formState.errors}
+                isCreating={isCreating}
+                createError={createError}
                 />
             </main>
         </UnitContext>

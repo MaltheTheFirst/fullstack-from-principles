@@ -14,6 +14,8 @@ type CatchFormProps = {
         fish: string | null
         length: string | null
     }
+    isCreating: boolean
+    createError: string | null
 }
 
 function CatchForm({
@@ -26,7 +28,9 @@ function CatchForm({
     onCancelEdit,
     fishInputRef,
     lengthInputRef,
-    errors
+    errors,
+    isCreating,
+    createError
 }: CatchFormProps) {
     return (
         <form className={styles.form} onSubmit={onSubmit}>
@@ -54,9 +58,12 @@ function CatchForm({
                 aria-describedby={errors.length ? 'length-error' : undefined}
             />
             <div className={styles.actions}>
-                <button type="submit">
+                <button type="submit" disabled={isCreating}>
                     {editingId !== null ? "Save Edit" : "Add Catch"}
                 </button>
+                {createError && (
+                    <p role="alert">Error: {createError}</p>
+                )}
                 {
                     editingId !== null && 
                     <button type="button" onClick={onCancelEdit}>Cancel</button>

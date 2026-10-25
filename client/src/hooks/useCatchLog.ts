@@ -97,6 +97,9 @@ export function useCatchLog() {
     )
     const [search, setSearch] = useState("")
     const [sortOrder, setSortOrder] = useState("default")
+    const [isCreating, setIsCreating] = useState(false)
+    const [createError, setCreateError] = useState<string | null>(null)
+    const creatingRef = useRef(false)
 
     const { filteredCatches, sortedCatches } = useMemo(() => {
         const filteredCatches = catches.filter((catchItem) => {
@@ -240,6 +243,12 @@ export function useCatchLog() {
             return
         }
 
+        if (creatingRef.current) return
+        
+        creatingRef.current = true
+        setIsCreating(true)
+        setCreateError(null)
+
         fetch('http://127.0.0.1:3001/catches', {
             method: 'POST',
             headers: {
@@ -259,7 +268,12 @@ export function useCatchLog() {
                 dispatch({ type: "reset" })
             })
             .catch(error => {
+                setCreateError('Failed to create catch')
                 console.error(error)
+            }) 
+            .finally(() => {
+                setIsCreating(false)
+                creatingRef.current = false
             })
 	}
 
@@ -298,6 +312,8 @@ export function useCatchLog() {
         sortedCatches,
         catchCount,
         longestCatch,
+        isCreating,
+        createError
     }
 }
 

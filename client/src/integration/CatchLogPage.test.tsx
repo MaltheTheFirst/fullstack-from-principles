@@ -1,7 +1,35 @@
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import CatchLogPage from '../pages/CatchLogPage'
 import { CatchProvider } from '../context/CatchProvider'
+import { useCatchLog } from '../hooks/useCatchLog'
+
+function CatchSubmissionHarness() {
+    const { 
+        handleSubmit,
+        formState,
+        handleFishChange,
+        handleLengthChange,
+    } = useCatchLog()
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <input
+                id='test-fish'
+                value={formState.fish}
+                onChange={(event) => handleFishChange(event.target.value)}
+            />
+            <label htmlFor="test-fish">Fish</label>
+            <input
+                id='test-length'
+                value={formState.length}
+                onChange={(event) => handleLengthChange(event.target.value)}
+            />
+            <label htmlFor="test-length">Length</label>
+            <button type="submit">Submit</button>
+        </form>
+    )
+}
 
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -208,4 +236,92 @@ test('clears validation feedback when the user edits the form', () => {
     expect(
         screen.queryByText('Enter a length greater than 0')
     ).toBeInTheDocument()
+})
+
+test('prevents overlapping catch creation requests', async () => {
+    let resolvePost!: (response: Response) => void
+
+    const pendingPost = new Promise<Response>((resolve) => {
+        resolvePost = resolve
+    })
+
+    const fetchMock = vi.fn((_url, options) => {
+        const method = options?.method ?? 'GET'
+
+        if (method === 'POST') {
+            return pendingPost
+        }
+
+        return Promise.resolve({
+            ok: true,
+            json: async () => []
+        })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchSubmissionHarness />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Fish'),
+        { target: { value: 'Sea Bass' } }
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: '42' } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Submit' })
+    )
+
+    expect(fetchMock.mock.calls.length).toBe(2)
+
+    const countPostCalls = () => {
+        return fetchMock.mock.calls.filter(
+            ([, options]) => options?.method === 'POST'
+        ).length
+    }
+
+    expect(countPostCalls()).toBe(1)
+
+    fireEvent.submit(
+        screen.getByRole('button', { name: 'Submit' }).closest('form')!
+    )
+
+    expect(countPostCalls()).toBe(1)
+
+    await act(async () => {
+        resolvePost({
+            ok: true,
+            json: async () => ({
+                id: 3,
+                fish: 'Sea Bass',
+                length: 42
+            })
+        } as Response)
+    })
+
+    fireEvent.change(
+        screen.getByLabelText('Fish'),
+        { target: { value: 'Sea Bass' } }
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: '42' } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Submit' })
+    )
+
+    expect(countPostCalls()).toBe(2)
 })
