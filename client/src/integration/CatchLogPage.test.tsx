@@ -325,3 +325,39 @@ test('prevents overlapping catch creation requests', async () => {
 
     expect(countPostCalls()).toBe(2)
 })
+
+test('shows an error when loading catches fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => 
+        Promise.reject(new Error('Server unavailable'))
+    ))
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+    expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
+})
+
+test('shows loading state while catches are being fetched', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => 
+        new Promise<Response>(() => {})
+    ))
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.getByText('Loading catches...')).toBeInTheDocument()
+
+    expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
+})

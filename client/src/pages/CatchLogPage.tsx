@@ -27,7 +27,9 @@ function CatchLogPage() {
         sortedCatches,
         longestCatch,
         isCreating,
-        createError
+        createError,
+        isLoadingCatches,
+        loadError
     } = useCatchLog()
 
     const [unit, setUnit] = useState<"cm" | "in">("cm")
@@ -73,13 +75,19 @@ function CatchLogPage() {
                 }
 
                 {
-                search !== "" && filteredCatches.length === 0
-                ? <p>No catches match your search</p>
-                : <CatchList
-                    catches={sortedCatches}
-                    onDelete={handleDelete}
-                    onEdit={handleEdit}
-                    />
+                isLoadingCatches 
+                    ? <p>Loading catches...</p>
+                    : loadError
+                        ? <p role="alert">{loadError}</p>
+                        : catches.length === 0
+                            ? <p>No catches recorded yet</p>
+                            : search !== "" && filteredCatches.length === 0
+                                ? <p>No catches match your search</p>
+                                : <CatchList
+                                    catches={sortedCatches}
+                                    onDelete={handleDelete}
+                                    onEdit={handleEdit}
+                                    />
                 }
                 <CatchForm 
                 fish={formState.fish}

@@ -4,6 +4,8 @@ import type { Catch } from '../types/Catch'
 type CatchContextValue = {
     catches: Catch[]
     setCatches: React.Dispatch<React.SetStateAction<Catch[]>>
+    isLoadingCatches: boolean
+    loadError: string | null
 }
 
 export const CatchContext = createContext<CatchContextValue | null>(null)
