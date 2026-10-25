@@ -3,11 +3,20 @@ import { MemoryRouter } from 'react-router'
 import App from '../App'
 import { CatchProvider } from '../context/CatchProvider'
 
-beforeEach(() => {
-    localStorage.clear()
+afterEach(() => {
+    vi.unstubAllGlobals()
 })
 
-test('opens the correct catch detail from the log', () => {
+test('opens the correct catch detail from the log', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => {
+        return Promise.resolve({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Horse Mackerel', length: 16 }
+            ]
+        })
+    }))
+
     render(
         <MemoryRouter initialEntries={['/']}>
             <CatchProvider>
@@ -17,7 +26,7 @@ test('opens the correct catch detail from the log', () => {
     )
 
     fireEvent.click(
-        screen.getByRole('link', { name: 'Horse Mackerel' })
+        await screen.findByRole('link', { name: 'Horse Mackerel' })
     )
 
     expect(

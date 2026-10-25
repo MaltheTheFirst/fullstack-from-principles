@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import cors from '@fastify/cors'
 
 type Catch = {
     id: number,
@@ -21,6 +22,11 @@ type UpdateCatchBody= {
 }
 
 const app = Fastify({ logger: true })
+
+await app.register(cors, {
+    origin: 'http://localhost:5173'
+})
+
 const catches: Catch[] = [
     { id: 1, fish: 'Horse Mackerel', length: 16 },
     { id: 2, fish: 'Sea Bass', length: 42 }

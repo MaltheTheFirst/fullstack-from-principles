@@ -1,4 +1,4 @@
-import { useLocalStorage } from "../hooks/useLocalStorage"
+import { useState, useEffect } from "react"
 import { CatchContext } from "./CatchContext"
 import type { ReactNode } from 'react'
 import type { Catch } from '../types/Catch'
@@ -8,23 +8,13 @@ type CatchProviderProps = {
 }
 
 export function CatchProvider({ children }: CatchProviderProps) {
-    const [catches, setCatches] = useLocalStorage<Catch[]>("catches", [
-        {
-            fish: "Horse Mackerel",
-            length: 16,
-            id: 1
-        },
-        {
-            fish: "Painted Comber",
-            length: 12,
-            id: 2
-        },
-        {
-            fish: "Guilthead Seabream",
-            length: 12,
-            id: 3
-        }
-    ])
+    const [catches, setCatches] = useState<Catch[]>([])
+
+    useEffect(() => {
+        fetch('http://127.0.0.1:3001/catches')
+            .then(response => response.json())
+            .then(data => setCatches(data))
+    }, [])
 
     return (
         <CatchContext value={{ catches, setCatches }}>

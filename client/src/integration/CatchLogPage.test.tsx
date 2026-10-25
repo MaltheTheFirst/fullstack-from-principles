@@ -3,11 +3,31 @@ import { MemoryRouter } from 'react-router'
 import CatchLogPage from '../pages/CatchLogPage'
 import { CatchProvider } from '../context/CatchProvider'
 
-beforeEach(() => {
-  localStorage.clear()
+afterEach(() => {
+    vi.unstubAllGlobals()
 })
 
-test('adds a catch through the catch log', () => {
+test('adds a catch through the catch log', async () => {
+    vi.stubGlobal('fetch', vi.fn((_url, options) => {
+        const method = options?.method ?? 'GET'
+
+        if (method === 'POST') {
+            return Promise.resolve({
+                ok: true,
+                json: async () => ({
+                    id: 3,
+                    fish: 'Sea Bass',
+                    length: 42
+                })
+            })
+        }
+
+        return Promise.resolve({
+            ok: true,
+            json: async () => []
+        })
+    }))
+
     render(
         <MemoryRouter>
             <CatchProvider>
@@ -30,10 +50,19 @@ test('adds a catch through the catch log', () => {
         screen.getByRole('button', { name: 'Add Catch' })
     )
 
-    expect(screen.getByText('Sea Bass')).toBeInTheDocument()
+    expect(await screen.findByText('Sea Bass')).toBeInTheDocument()
 })
 
-test('deletes a catch from the catch log', () => {
+test('deletes a catch from the catch log', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => 
+        Promise.resolve({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Horse Mackerel', length: 16 }
+            ]
+        })
+    ))
+
     render(
         <MemoryRouter>
             <CatchProvider>
@@ -42,7 +71,7 @@ test('deletes a catch from the catch log', () => {
         </MemoryRouter>
     )
 
-    expect(screen.getByText('Horse Mackerel')).toBeInTheDocument()
+    expect(await screen.findByText('Horse Mackerel')).toBeInTheDocument()
 
     const horseMackerel = screen.getByText('Horse Mackerel')
     const catchItem = horseMackerel.closest('li')
@@ -58,7 +87,16 @@ test('deletes a catch from the catch log', () => {
     expect(screen.queryByText('Horse Mackerel')).not.toBeInTheDocument()
 })
 
-test('edits a catch through the catch log', () => {
+test('edits a catch through the catch log', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => 
+        Promise.resolve({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Horse Mackerel', length: 16 }
+            ]
+        })
+    ))
+
     render(
         <MemoryRouter>
             <CatchProvider>
@@ -67,7 +105,7 @@ test('edits a catch through the catch log', () => {
         </MemoryRouter>
     )
 
-    const horseMackerel = screen.getByText('Horse Mackerel')
+    const horseMackerel = await screen.findByText('Horse Mackerel')
     const catchItem = horseMackerel.closest('li')
 
     if (!catchItem) {

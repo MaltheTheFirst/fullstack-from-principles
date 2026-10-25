@@ -1,8 +1,6 @@
 import { useReducer, useRef , useCallback, useState, useMemo } from 'react'
 import { useCatches } from '../context/useCatches'
 import { catchFormSchema } from '../schemas/catchFormSchema'
-import type { CatchFormData } from '../schemas/catchFormSchema'
-import type { Catch } from '../types/Catch'
 
 type CatchFormState = {
   fish: string
@@ -87,14 +85,6 @@ function catchFormReducer(
     default:
       return state
   }
-}
-
-function buildCatch(data: CatchFormData): Catch {
-    return {
-        id: Date.now(),
-        fish: data.fish,
-        length: data.length,
-    }
 }
 
 export function useCatchLog() {
@@ -198,7 +188,7 @@ export function useCatchLog() {
             }
 
         return
-    }
+        }
 
         const validatedCatch = result.data
 
@@ -221,17 +211,28 @@ export function useCatchLog() {
             return
         }
 
-        const newCatch = buildCatch(validatedCatch)
-
-        setCatches((currentCatches) => {
-            return [
-                ...currentCatches,
-                newCatch
-            ]
+        fetch('http://127.0.0.1:3001/catches', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(validatedCatch)
         })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to create catch')
+                }
 
-        dispatch({ type: "reset" })
-		}
+                return response.json()
+            })
+            .then(data => {
+                setCatches(currentCatches => [...currentCatches, data])
+                dispatch({ type: "reset" })
+            })
+            .catch(error => {
+                console.error(error)
+            })
+	}
 
     function handleFishChange(value: string) {
         dispatch({
