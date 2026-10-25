@@ -1,11 +1,6 @@
+import { pool } from './db.js'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
-
-type Catch = {
-    id: number,
-    fish: string,
-    length: number
-}
 
 type CatchParams = {
     id: string
@@ -28,22 +23,22 @@ await app.register(cors, {
     methods: [ 'GET', 'POST', 'PATCH', 'DELETE' ]
 })
 
-const catches: Catch[] = [
-    { id: 1, fish: 'Horse Mackerel', length: 16 },
-    { id: 2, fish: 'Sea Bass', length: 42 }
-]
-
 const handleHealth = () => {
     return { status: 'ok' }
 }
 
-const handleCatches = () => {
-    return catches
+const handleCatches = async () => {
+    const result = await pool.query(`
+        SELECT id, fish, length
+        FROM catches;
+    `)
+
+    return result.rows
 }
 
 app.get('/health', handleHealth)
 app.get('/catches', handleCatches)
-app.post<{ Body: CreateCatchBody }>('/catches', (request, reply) => {
+app.post<{ Body: CreateCatchBody }>('/catches', async (request, reply) => {
     if (!request.body) {
         return reply.code(400).send({
             error: 'Request body is required'
@@ -63,18 +58,15 @@ app.post<{ Body: CreateCatchBody }>('/catches', (request, reply) => {
         })
     }
 
-    const id = Date.now()
+    const result = await pool.query(`
+        INSERT INTO catches (fish, length)
+        VALUES ($1, $2)
+        RETURNING id, fish, length;
+    `, [fish, length])
 
-    const newCatch: Catch = {
-        id,
-        fish,
-        length
-    }
-
-    catches.push(newCatch)
-    return reply.code(201).send(newCatch)
+    return reply.code(201).send(result.rows[0])
 })
-app.delete<{ Params: CatchParams }>('/catches/:id', (request, reply) => {
+app.delete<{ Params: CatchParams }>('/catches/:id', async (request, reply) => {
     const catchId = Number(request.params.id)
 
     if (!Number.isSafeInteger(catchId) || catchId <= 0) {
@@ -83,18 +75,19 @@ app.delete<{ Params: CatchParams }>('/catches/:id', (request, reply) => {
         })
     }
 
-    const index = catches.findIndex(catchItem => catchItem.id === catchId)
+    const result = await pool.query(`
+        DELETE FROM catches
+        WHERE id = $1
+        RETURNING id;   
+    `, [catchId])
 
-    if (index === -1) {
-        return reply.code(404).send({
-            error: 'Catch not found'
-        })
+    if (result.rows.length === 0) {
+        return reply.code(404).send('Catch not found')
     }
 
-    catches.splice(index, 1)
     return reply.code(204).send()
 })
-app.patch<{ Body: UpdateCatchBody, Params: CatchParams }>('/catches/:id', (request, reply) => {
+app.patch<{ Body: UpdateCatchBody, Params: CatchParams }>('/catches/:id', async (request, reply) => {
     if (!request.body) {
         return reply.code(400).send({
             error: 'Request body is required'
@@ -132,23 +125,22 @@ app.patch<{ Body: UpdateCatchBody, Params: CatchParams }>('/catches/:id', (reque
         })
     }
 
-    const existingCatch = catches.find(catchItem => catchItem.id === id)
+    const result = await pool.query(`
+        UPDATE catches
+        SET
+            fish = COALESCE($1, fish),
+            length = COALESCE($2, length)
+        WHERE id = $3
+        RETURNING id, fish, length;
+    `, [fish, length, id])
 
-    if (existingCatch === undefined) {
+    if (result.rows.length === 0) {
         return reply.code(404).send({
             error: 'Catch not found'
         })
     }
 
-    if (fish !== undefined) {
-        existingCatch.fish = fish
-    }
-
-    if (length !== undefined) {
-        existingCatch.length = length
-    }
-
-    return reply.code(200).send(existingCatch)
+    return reply.code(200).send(result.rows[0])
 })
 
 try {
