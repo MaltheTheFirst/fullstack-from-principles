@@ -152,11 +152,24 @@ export function useCatchLog() {
     }, [catches])
 
     const handleDelete = useCallback((id: number) => {
-        setCatches((currentCatches) => {
-            return currentCatches.filter((catchItem) => {
-                return catchItem.id !== id
-            })
+        fetch(`http://127.0.0.1:3001/catches/${id}`, {
+            method: 'DELETE',
         })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to delete catch')
+                }
+
+                setCatches((currentCatches) => {
+                    return currentCatches.filter((catchItem) => {
+                        return catchItem.id !== id
+                    })
+                })
+            })
+            .catch(error => {
+                console.error(error)
+            })
+
     }, [setCatches])
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -193,21 +206,37 @@ export function useCatchLog() {
         const validatedCatch = result.data
 
         if (formState.editingId !== null) {
-            setCatches((currentCatches) => {
-                return currentCatches.map((catchItem) => {
-                    if (catchItem.id === formState.editingId) {
-                        return {
-                            id: catchItem.id,
-                            fish: validatedCatch.fish,
-                            length: validatedCatch.length
-                        }
+            fetch(`http://127.0.0.1:3001/catches/${formState.editingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(validatedCatch)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update catch')
                     }
 
-                    return catchItem
+                    return response.json()
                 })
-            })
+                .then(updatedCatch => {
+                    setCatches(currentCatches => {
+                        return currentCatches.map(catchItem => {
+                            if (catchItem.id === updatedCatch.id) {
+                                return updatedCatch
+                            }
 
-            dispatch({ type: "reset" })
+                            return catchItem
+                        })
+                    })
+
+                    dispatch({ type: "reset" })
+
+                })
+                .catch(error => {
+                    console.error(error)
+                })
             return
         }
 

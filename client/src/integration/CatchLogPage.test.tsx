@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import CatchLogPage from '../pages/CatchLogPage'
 import { CatchProvider } from '../context/CatchProvider'
@@ -84,18 +84,29 @@ test('deletes a catch from the catch log', async () => {
         within(catchItem).getByRole('button', { name: 'Delete' })
     )
 
-    expect(screen.queryByText('Horse Mackerel')).not.toBeInTheDocument()
+    await waitFor(() => {
+        expect(screen.queryByText('Horse Mackerel')).not.toBeInTheDocument()
+    })
 })
 
 test('edits a catch through the catch log', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => 
-        Promise.resolve({
-            ok: true,
-            json: async () => [
-                { id: 1, fish: 'Horse Mackerel', length: 16 }
-            ]
-        })
-    ))
+    vi.stubGlobal('fetch', 
+        vi.fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => [
+                    { id: 1, fish: 'Horse Mackerel', length: 16 }
+                ]
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    id: 1,
+                    fish: 'Atlantic Mackerel',
+                    length: 16
+                })
+            })
+    )
 
     render(
         <MemoryRouter>
@@ -134,7 +145,7 @@ test('edits a catch through the catch log', async () => {
     )
 
     expect(
-        screen.getByText('Atlantic Mackerel')
+        await screen.findByText('Atlantic Mackerel')
     ).toBeInTheDocument()
 
     expect(
