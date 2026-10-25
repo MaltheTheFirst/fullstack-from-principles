@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { CatchContext } from "./CatchContext"
 import type { ReactNode } from 'react'
 import type { Catch } from '../types/Catch'
@@ -12,7 +12,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
     const [isLoadingCatches, setIsLoadingCatches] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
 
-    useEffect(() => {
+    const loadCatches = useCallback(() => {
         fetch('http://127.0.0.1:3001/catches')
             .then(response => {
                 if (!response.ok) {
@@ -31,8 +31,18 @@ export function CatchProvider({ children }: CatchProviderProps) {
             })
     }, [])
 
+    const retryLoadCatches = () => {
+        setIsLoadingCatches(true)
+        setLoadError(null)
+        loadCatches()
+    }
+
+    useEffect(() => {
+        loadCatches()
+    }, [loadCatches])
+
     return (
-        <CatchContext value={{ catches, setCatches, isLoadingCatches, loadError }}>
+        <CatchContext value={{ catches, setCatches, isLoadingCatches, loadError, retryLoadCatches }}>
             {children}
         </CatchContext>
     )

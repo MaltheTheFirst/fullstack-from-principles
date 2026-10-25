@@ -6,6 +6,7 @@ type CatchContextValue = {
     setCatches: React.Dispatch<React.SetStateAction<Catch[]>>
     isLoadingCatches: boolean
     loadError: string | null
+    retryLoadCatches: () => void
 }
 
 export const CatchContext = createContext<CatchContextValue | null>(null)

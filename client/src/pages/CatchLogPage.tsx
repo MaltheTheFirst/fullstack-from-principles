@@ -29,7 +29,8 @@ function CatchLogPage() {
         isCreating,
         createError,
         isLoadingCatches,
-        loadError
+        loadError,
+        retryLoadCatches
     } = useCatchLog()
 
     const [unit, setUnit] = useState<"cm" | "in">("cm")
@@ -78,7 +79,10 @@ function CatchLogPage() {
                 isLoadingCatches 
                     ? <p>Loading catches...</p>
                     : loadError
-                        ? <p role="alert">{loadError}</p>
+                        ? <>
+                            <p role="alert">{loadError}</p>
+                            <button type="button" onClick={retryLoadCatches}>Retry</button>
+                        </>
                         : catches.length === 0
                             ? <p>No catches recorded yet</p>
                             : search !== "" && filteredCatches.length === 0

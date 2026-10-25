@@ -361,3 +361,34 @@ test('shows loading state while catches are being fetched', async () => {
 
     expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
 })
+
+test('retries loading catches after a failed request', async () => {
+    const fetchMock = vi.fn()
+        .mockRejectedValueOnce(new Error('Server unavailable'))
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
