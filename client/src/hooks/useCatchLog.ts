@@ -101,6 +101,9 @@ export function useCatchLog() {
     const [createError, setCreateError] = useState<string | null>(null)
     const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
     const [deleteError, setDeleteError] = useState<string | null>(null)
+    const [updateError, setUpdateError] = useState<string | null>(null)
+    const [isUpdating, setIsUpdating] = useState(false)
+    const updatingRef = useRef(false)
     const creatingRef = useRef(false)
     const deletingIdsRef = useRef(new Set<number>())
 
@@ -135,10 +138,17 @@ export function useCatchLog() {
             : null
 
     function handleCancelEdit() {
+        if (updatingRef.current === true) {
+            return
+        }
         dispatch({ type: "cancelEditing" })
     }
 
     const handleEdit = useCallback((id: number) => {
+        if (updatingRef.current === true) {
+            return
+        }
+
         const catchToEdit = catches.find((catchItem) => {
             return catchItem.id === id
         })
@@ -234,6 +244,14 @@ export function useCatchLog() {
         const validatedCatch = result.data
 
         if (formState.editingId !== null) {
+            if (updatingRef.current === true) {
+                return
+            }
+
+            updatingRef.current = true
+            setIsUpdating(true)
+            setUpdateError(null)
+
             fetch(`http://127.0.0.1:3001/catches/${formState.editingId}`, {
                 method: 'PATCH',
                 headers: {
@@ -264,6 +282,11 @@ export function useCatchLog() {
                 })
                 .catch(error => {
                     console.error(error)
+                    setUpdateError('Failed to update catch')
+                })
+                .finally(() => {
+                    updatingRef.current = false
+                    setIsUpdating(false)
                 })
             return
         }
@@ -344,7 +367,9 @@ export function useCatchLog() {
         retryLoadCatches,
         hasLoadedCatches,
         deletingIds,
-        deleteError
+        deleteError,
+        isUpdating,
+        updateError
     }
 }
 

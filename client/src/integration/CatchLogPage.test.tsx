@@ -767,3 +767,391 @@ test('prevents duplicate DELETE requests for the same catch', async () => {
         resolveA({ ok: true } as Response)
     })
 })
+
+test('disables form submission while PATCH is pending', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Edit' })
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: 45 } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Save Edit' })
+    )
+
+    const savingButton = screen.getByRole('button', {
+        name: 'Saving...'
+    })
+    expect(savingButton).toBeDisabled()
+
+    const doradaItem = screen.getByText('Dorada').closest('li')
+
+    expect(doradaItem).toHaveTextContent(/42\s*cm/)
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => ({
+                id: 1,
+                fish: 'Dorada',
+                length: 45
+            })
+        } as Response)
+    })
+
+    expect(screen.getByRole('button', { name: 'Add Catch' })).toBeInTheDocument()
+
+    expect(expect(doradaItem).toHaveTextContent(/45\s*cm/))
+    expect(doradaItem).not.toHaveTextContent(/42\s*cm/)
+})
+
+test('preserves edits and allows retry after PATCH failure', async () => {
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockResolvedValueOnce({
+            ok: false,
+            status: 500
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+                id: 1,
+                fish: 'Dorada',
+                length: 45
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Edit' })
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: '45' } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Save Edit' })
+    )
+
+    await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save Edit' })).toBeEnabled()
+    })
+
+    const doradaItem = screen.getByText('Dorada').closest('li')
+
+    expect(doradaItem).toHaveTextContent(/42\s*cm/)
+
+    expect(screen.getByLabelText('Length')).toHaveValue(45)
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Save Edit' })
+    )
+
+    await waitFor(() => {
+        expect(doradaItem).toHaveTextContent(/45\s*cm/)
+    })
+
+    expect(screen.getByRole('button', { name: 'Add Catch' })).toBeInTheDocument()
+
+    expect(screen.getByLabelText('Fish')).toHaveValue('')
+    expect(screen.getByLabelText('Length')).toHaveValue(null)
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+})
+
+test('prevents duplicate PATCH requests while an update is pending', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useCatchLog(), {
+        wrapper: CatchProvider
+    })
+
+    await waitFor(() => {
+        expect(result.current.catches).toHaveLength(1)
+    })
+
+    act(() => {
+        result.current.handleEdit(result.current.catches[0].id)
+    })
+    
+    const event = {
+        preventDefault: vi.fn()
+    } as unknown as React.FormEvent<HTMLFormElement>
+
+    act(() => {
+        result.current.handleSubmit(event)
+        result.current.handleSubmit(event)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => ({
+                id: 1,
+                fish: 'Dorada',
+                length: 42
+            })
+        } as Response)
+    })
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+        expect.stringContaining('/catches/1'),
+        expect.objectContaining({ method: 'PATCH' })
+    )
+})
+
+test('disables cancellation while PATCH is pending', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Edit' })
+    )
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: '45' } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Save Edit' })
+    )
+
+    await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    })
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => ({
+                id: 1,
+                fish: 'Dorada',
+                length: 45
+            })
+        } as Response)
+    })
+
+    expect(screen.getByRole('button', { name: 'Add Catch' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+})
+
+test('prevents cancelling edit directly while PATCH is pending', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useCatchLog(), {
+        wrapper: CatchProvider
+    })
+
+    const event = {
+        preventDefault: vi.fn()
+    } as unknown as React.FormEvent<HTMLFormElement>
+
+    await waitFor(() => {
+        expect(result.current.catches).toHaveLength(1)
+    })
+
+    act(() => {
+        result.current.handleEdit(1)
+    })
+
+    act(() => {
+        result.current.handleSubmit(event)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    act(() => {
+        result.current.handleCancelEdit()
+    })
+
+    expect(result.current.formState.editingId).toBe(1)
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => ({
+                id: 1,
+                fish: 'Dorada',
+                length: 45
+            })
+        } as Response)
+    })
+
+    expect(result.current.formState.editingId).toBe(null)
+})
+
+test('prevents switching catches while PATCH is pending', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { 
+                    id: 1, 
+                    fish: 'Dorada', 
+                    length: 42 
+                },
+                {
+                    id: 2,
+                    fish: 'Sea Bass',
+                    length: 35
+                }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useCatchLog(), {
+        wrapper: CatchProvider
+    })
+
+    const event = {
+        preventDefault: vi.fn()
+    } as unknown as React.FormEvent<HTMLFormElement>
+
+    await waitFor(() => {
+        expect(result.current.catches).toHaveLength(2)
+    })
+
+    act(() => {
+        result.current.handleEdit(1)
+    })
+
+    act(() => {
+        result.current.handleSubmit(event)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    act(() => {
+        result.current.handleEdit(2)
+    })
+
+    expect(result.current.formState.editingId).toBe(1)
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => ({
+                id: 1,
+                fish: 'Dorada',
+                length: 42
+            })
+        } as Response)
+    })
+
+    expect(result.current.formState.editingId).toBe(null)
+})

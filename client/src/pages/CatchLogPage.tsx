@@ -33,7 +33,9 @@ function CatchLogPage() {
         retryLoadCatches,
         hasLoadedCatches,
         deletingIds,
-        deleteError
+        deleteError,
+        isUpdating,
+        updateError
     } = useCatchLog()
 
     const [unit, setUnit] = useState<"cm" | "in">("cm")
@@ -107,18 +109,20 @@ function CatchLogPage() {
                 </button>
 
                 <CatchForm 
-                fish={formState.fish}
-                length={formState.length}
-                editingId={formState.editingId}
-                onFishChange={handleFishChange}
-                onLengthChange={handleLengthChange}
-                onSubmit={handleSubmit}
-                onCancelEdit={handleCancelEdit}
-                fishInputRef={fishInputRef}
-                lengthInputRef={lengthInputRef}
-                errors={formState.errors}
-                isCreating={isCreating}
-                createError={createError}
+                    fish={formState.fish}
+                    length={formState.length}
+                    editingId={formState.editingId}
+                    onFishChange={handleFishChange}
+                    onLengthChange={handleLengthChange}
+                    onSubmit={handleSubmit}
+                    onCancelEdit={handleCancelEdit}
+                    fishInputRef={fishInputRef}
+                    lengthInputRef={lengthInputRef}
+                    errors={formState.errors}
+                    isCreating={isCreating}
+                    createError={createError}
+                    isUpdating={isUpdating}
+                    updateError={updateError}
                 />
             </main>
         </UnitContext>

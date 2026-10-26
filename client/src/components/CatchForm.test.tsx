@@ -22,6 +22,8 @@ test('calls onFishChange when fish input changes', () => {
             }}
             isCreating={false}
             createError={null}
+            isUpdating={false}
+            updateError={null}
         />
     )
 
@@ -52,6 +54,8 @@ test('calls onSubmit when the form is submitted', () => {
             }}
             isCreating={false}
             createError={null}
+            isUpdating={false}
+            updateError={null}
         />
     )
 
@@ -78,6 +82,8 @@ test('shows edit controls when editing a catch', () => {
             }}
             isCreating={false}
             createError={null}
+            isUpdating={false}
+            updateError={null}
         />
     )
 
@@ -108,6 +114,8 @@ test('shows a validation error', () => {
             lengthInputRef={createRef<HTMLInputElement>()}
             isCreating={false}
             createError={null}
+            isUpdating={false}
+            updateError={null}
         />
     )
 
@@ -138,6 +146,8 @@ test('marks invalid fileds and links them to their error messages', () => {
             lengthInputRef={createRef<HTMLInputElement>()}
             isCreating={false}
             createError={null}
+            isUpdating={false}
+            updateError={null}
         />
     )
 

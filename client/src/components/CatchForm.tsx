@@ -16,6 +16,8 @@ type CatchFormProps = {
     }
     isCreating: boolean
     createError: string | null
+    isUpdating: boolean
+    updateError: string | null
 }
 
 function CatchForm({
@@ -30,7 +32,9 @@ function CatchForm({
     lengthInputRef,
     errors,
     isCreating,
-    createError
+    createError,
+    isUpdating,
+    updateError
 }: CatchFormProps) {
     return (
         <form className={styles.form} onSubmit={onSubmit}>
@@ -58,15 +62,18 @@ function CatchForm({
                 aria-describedby={errors.length ? 'length-error' : undefined}
             />
             <div className={styles.actions}>
-                <button type="submit" disabled={isCreating}>
-                    {editingId !== null ? "Save Edit" : "Add Catch"}
+                <button type="submit" disabled={isCreating || isUpdating}>
+                    { editingId !== null 
+                        ? (isUpdating ? "Saving..." : "Save Edit")
+                        : (isCreating ? "Adding..." : "Add Catch")
+                    }
                 </button>
                 {createError && (
-                    <p role="alert">Error: {createError}</p>
+                    <p role="alert">Error: {createError}{updateError}</p>
                 )}
                 {
                     editingId !== null && 
-                    <button type="button" onClick={onCancelEdit}>Cancel</button>
+                    <button type="button" disabled={isUpdating} onClick={onCancelEdit}>Cancel</button>
                 }
 
                 {errors.fish && (
