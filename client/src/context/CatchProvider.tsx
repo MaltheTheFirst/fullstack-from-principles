@@ -11,6 +11,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
     const [catches, setCatches] = useState<Catch[]>([])
     const [isLoadingCatches, setIsLoadingCatches] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
+    const [hasLoadedCatches, setHasLoadedCatches] = useState(false)
     const activeControllerRef = useRef<AbortController | null>(null)
 
     const loadCatches = useCallback(() => {
@@ -31,6 +32,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
         })
         .then(data => {
             if (activeControllerRef.current === controller && !controller.signal.aborted) {
+                setHasLoadedCatches(true)
                 setCatches(data)
             }
         })
@@ -68,7 +70,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
     }, [loadCatches])
 
     return (
-        <CatchContext value={{ catches, setCatches, isLoadingCatches, loadError, retryLoadCatches }}>
+        <CatchContext value={{ catches, setCatches, isLoadingCatches, loadError, retryLoadCatches, hasLoadedCatches }}>
             {children}
         </CatchContext>
     )

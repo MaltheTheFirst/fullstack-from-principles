@@ -90,7 +90,7 @@ function catchFormReducer(
 export function useCatchLog() {
     const fishInputRef = useRef<HTMLInputElement>(null)
     const lengthInputRef = useRef<HTMLInputElement>(null)
-    const { catches, setCatches, isLoadingCatches, loadError, retryLoadCatches } = useCatches()
+    const { catches, setCatches, isLoadingCatches, loadError, retryLoadCatches, hasLoadedCatches } = useCatches()
     const [formState, dispatch] = useReducer(
         catchFormReducer,
         initialFormState
@@ -316,7 +316,8 @@ export function useCatchLog() {
         createError,
         isLoadingCatches,
         loadError,
-        retryLoadCatches
+        retryLoadCatches,
+        hasLoadedCatches
     }
 }
 

@@ -30,17 +30,18 @@ function CatchLogPage() {
         createError,
         isLoadingCatches,
         loadError,
-        retryLoadCatches
+        retryLoadCatches,
+        hasLoadedCatches
     } = useCatchLog()
 
     const [unit, setUnit] = useState<"cm" | "in">("cm")
 
-		const displayLongestCatch =
-				longestCatch === null
-						? null
-						: unit === "cm"
-								? longestCatch
-								: Number((longestCatch / 2.54).toFixed(1))
+    const displayLongestCatch =
+        longestCatch === null
+            ? null
+            : unit === "cm"
+                ? longestCatch
+                : Number((longestCatch / 2.54).toFixed(1))
 
     return (
         <UnitContext value={unit}>
@@ -63,7 +64,7 @@ function CatchLogPage() {
                 <option value="in">Inches</option>
                 </select>
 
-                { 
+                {   
                 catches.length === 0 
                     ? <h3>No catches logged yet</h3> 
                     : <h3>{catches.length} catches logged</h3> 
@@ -76,9 +77,9 @@ function CatchLogPage() {
                 }
 
                 {
-                isLoadingCatches 
+                isLoadingCatches && !hasLoadedCatches
                     ? <p>Loading catches...</p>
-                    : loadError
+                    : loadError && !hasLoadedCatches
                         ? <>
                             <p role="alert">{loadError}</p>
                             <button type="button" onClick={retryLoadCatches}>Retry</button>
@@ -93,6 +94,14 @@ function CatchLogPage() {
                                     onEdit={handleEdit}
                                     />
                 }
+
+                {isLoadingCatches && hasLoadedCatches && <p>Refreshing catches...</p>}
+                {loadError && hasLoadedCatches && <p role="alert">{loadError}</p>}
+                
+                <button type="button" onClick={retryLoadCatches} disabled={isLoadingCatches}>
+                    Refresh catches
+                </button>
+
                 <CatchForm 
                 fish={formState.fish}
                 length={formState.length}

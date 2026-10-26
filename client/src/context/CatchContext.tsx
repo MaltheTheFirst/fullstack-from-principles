@@ -7,6 +7,7 @@ type CatchContextValue = {
     isLoadingCatches: boolean
     loadError: string | null
     retryLoadCatches: () => void
+    hasLoadedCatches: boolean
 }
 
 export const CatchContext = createContext<CatchContextValue | null>(null)
