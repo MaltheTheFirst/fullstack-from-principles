@@ -6,9 +6,10 @@ type CatchListProps = {
     catches: Catch[]
     onDelete: (id: number) => void
     onEdit: (id: number) => void
+    deletingIds: Set<number>
 }
 
-function CatchList({ catches, onDelete, onEdit }: CatchListProps) {
+function CatchList({ catches, onDelete, onEdit, deletingIds }: CatchListProps) {
     return(
         <ul>
             {
@@ -21,6 +22,7 @@ function CatchList({ catches, onDelete, onEdit }: CatchListProps) {
                             key={catchItem.id}
                             onDelete={onDelete}
                             onEdit={onEdit}
+                            isDeleting={deletingIds.has(catchItem.id)}
                         />
                     )
                 })

@@ -99,7 +99,10 @@ export function useCatchLog() {
     const [sortOrder, setSortOrder] = useState("default")
     const [isCreating, setIsCreating] = useState(false)
     const [createError, setCreateError] = useState<string | null>(null)
+    const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
+    const [deleteError, setDeleteError] = useState<string | null>(null)
     const creatingRef = useRef(false)
+    const deletingIdsRef = useRef(new Set<number>())
 
     const { filteredCatches, sortedCatches } = useMemo(() => {
         const filteredCatches = catches.filter((catchItem) => {
@@ -155,24 +158,46 @@ export function useCatchLog() {
     }, [catches])
 
     const handleDelete = useCallback((id: number) => {
+        if (deletingIdsRef.current.has(id)) {
+            return
+        }
+
+        deletingIdsRef.current.add(id)
+
+        setDeleteError(null)
+
+        setDeletingIds(current => {
+            const next = new Set(current)
+            next.add(id)
+            return next
+        })
+
         fetch(`http://127.0.0.1:3001/catches/${id}`, {
             method: 'DELETE',
         })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to delete catch')
-                }
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete catch')
+            }
 
-                setCatches((currentCatches) => {
-                    return currentCatches.filter((catchItem) => {
-                        return catchItem.id !== id
-                    })
+            setCatches((currentCatches) => {
+                return currentCatches.filter((catchItem) => {
+                    return catchItem.id !== id
                 })
             })
-            .catch(error => {
-                console.error(error)
+        })
+        .catch(error => {
+            console.error(error)
+            setDeleteError('Failed to delete catch')
+        })
+        .finally(() => {
+            deletingIdsRef.current.delete(id)
+            setDeletingIds(current => {
+                const next = new Set(current)
+                next.delete(id)
+                return next
             })
-
+        })
     }, [setCatches])
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -317,7 +342,9 @@ export function useCatchLog() {
         isLoadingCatches,
         loadError,
         retryLoadCatches,
-        hasLoadedCatches
+        hasLoadedCatches,
+        deletingIds,
+        deleteError
     }
 }
 

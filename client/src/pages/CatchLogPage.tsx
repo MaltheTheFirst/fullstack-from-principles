@@ -31,7 +31,9 @@ function CatchLogPage() {
         isLoadingCatches,
         loadError,
         retryLoadCatches,
-        hasLoadedCatches
+        hasLoadedCatches,
+        deletingIds,
+        deleteError
     } = useCatchLog()
 
     const [unit, setUnit] = useState<"cm" | "in">("cm")
@@ -92,9 +94,11 @@ function CatchLogPage() {
                                     catches={sortedCatches}
                                     onDelete={handleDelete}
                                     onEdit={handleEdit}
+                                    deletingIds={deletingIds}
                                     />
                 }
 
+                {deleteError && <p role="alert">{deleteError}</p>}
                 {isLoadingCatches && hasLoadedCatches && <p>Refreshing catches...</p>}
                 {loadError && hasLoadedCatches && <p role="alert">{loadError}</p>}
                 

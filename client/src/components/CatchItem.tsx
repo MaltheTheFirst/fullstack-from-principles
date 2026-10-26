@@ -6,9 +6,10 @@ import { UnitContext } from '../context/UnitContext'
 type CatchItemProps = Catch & {
   onDelete: (id: number) => void
   onEdit: (id: number) => void
+  isDeleting: boolean
 }
 
-function CatchItem({ fish, length, id, onDelete, onEdit }: CatchItemProps) {
+function CatchItem({ fish, length, id, onDelete, onEdit, isDeleting }: CatchItemProps) {
   const unit = useContext(UnitContext)
 
   const displayLength = 
@@ -22,7 +23,12 @@ function CatchItem({ fish, length, id, onDelete, onEdit }: CatchItemProps) {
         <Link to={`/catches/${id}`}>
           {fish}
         </Link> - {displayLength}{unit}</p>
-      <button onClick={() => onDelete(id)}>Delete</button>
+      <button disabled={isDeleting} onClick={() => onDelete(id)}>
+          { isDeleting
+              ? 'Deleting...'
+              : 'Delete'
+          }
+      </button>
       <button onClick={() => onEdit(id)}>Edit</button>
     </li>
   )

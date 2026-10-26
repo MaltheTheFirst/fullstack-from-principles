@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act, renderHook } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { useContext } from 'react'
 import CatchLogPage from '../pages/CatchLogPage'
@@ -609,4 +609,161 @@ test('reloads catches when POST succeeds before initial GET completes', async ()
     expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
 
     expect(fetchMock.mock.calls[0][1]?.signal.aborted).toBe(true)
+})
+
+test('disables only the catch being deleted while DELETE is pending', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 },
+                { id: 2, fish: 'Sea Bass', length: 35 }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    expect(screen.getByText('Sea Bass')).toBeInTheDocument()
+
+    const doradaItem = screen.getByText('Dorada').closest('li')
+
+    const doradaDeleteButton = within(doradaItem!).getByRole('button', {
+        name: 'Delete'
+    })
+
+    fireEvent.click(doradaDeleteButton)
+
+    expect(doradaDeleteButton).toBeDisabled()
+
+    const seaBassItem = screen.getByText('Sea Bass').closest('li')
+
+    const seaBassDeleteButton = within(seaBassItem!).getByRole('button', {
+        name: 'Delete'
+    })
+
+    expect(seaBassDeleteButton).toBeEnabled()
+
+    expect (fetchMock).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+        resolveA({
+            ok: true
+        } as Response)
+    })
+
+    expect(screen.queryByText('Dorada')).not.toBeInTheDocument()
+
+    expect(screen.getByText('Sea Bass')).toBeInTheDocument()
+})
+
+test('preserves a catch and allows retry after DELETE fails', async () => {
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockResolvedValueOnce({
+            ok: false,
+            status: 500
+        })
+        .mockResolvedValueOnce({
+            ok: true
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    const doradaItem = screen.getByText('Dorada').closest('li')
+
+    const doradaDeleteButton = within(doradaItem!).getByRole('button', {
+        name: 'Delete'
+    })
+
+    fireEvent.click(doradaDeleteButton)
+
+    await waitFor(() => {
+        expect(doradaDeleteButton).toBeEnabled()
+    })
+
+    expect(screen.getByText('Dorada')).toBeInTheDocument()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Failed to delete catch'
+    )
+
+    fireEvent.click(doradaDeleteButton)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    await waitFor(() => {
+        expect(screen.queryByText('Dorada')).not.toBeInTheDocument()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+})
+
+test('prevents duplicate DELETE requests for the same catch', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useCatchLog(), {
+        wrapper: CatchProvider
+    })
+
+    await waitFor(() => {
+        expect(result.current.catches).toHaveLength(1)
+    })
+
+    act(() => {
+        result.current.handleDelete(1)
+        result.current.handleDelete(1)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+        resolveA({ ok: true } as Response)
+    })
 })

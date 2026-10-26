@@ -11,6 +11,7 @@ test('renders the catch fish name', () => {
                 length={16}
                 onDelete={() => {}}
                 onEdit={() => {}}
+                isDeleting={false}
             />
         </MemoryRouter>
     )
@@ -29,6 +30,7 @@ test('calls onDelete with the catch id when delete is clicked', () => {
                 length={16}
                 onDelete={onDelete}
                 onEdit={() => {}}
+                isDeleting={false}
             />
         </MemoryRouter>
     )
