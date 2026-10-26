@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { CatchContext } from "./CatchContext"
 import type { ReactNode } from 'react'
 import type { Catch } from '../types/Catch'
@@ -11,24 +11,46 @@ export function CatchProvider({ children }: CatchProviderProps) {
     const [catches, setCatches] = useState<Catch[]>([])
     const [isLoadingCatches, setIsLoadingCatches] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
+    const activeControllerRef = useRef<AbortController | null>(null)
 
     const loadCatches = useCallback(() => {
-        fetch('http://127.0.0.1:3001/catches')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to load catches')
-                }
+        activeControllerRef.current?.abort()
 
-                return response.json()
-            })
-            .then(data => setCatches(data))
-            .catch((error) => {
-                console.error(error)
-                setLoadError('Failed to load catches')
-            })
-            .finally(() => {
+        const controller = new AbortController()
+        activeControllerRef.current = controller
+
+        fetch('http://127.0.0.1:3001/catches', { 
+            signal: controller.signal
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load catches')
+            }
+
+            return response.json()
+        })
+        .then(data => {
+            if (activeControllerRef.current === controller && !controller.signal.aborted) {
+                setCatches(data)
+            }
+        })
+        .catch((error) => {
+            if (error instanceof Error && error.name === 'AbortError') {
+                return
+            }
+
+            if (activeControllerRef.current !== controller || controller.signal.aborted) {
+                return
+            }
+            
+            console.error(error)
+            setLoadError('Failed to load catches')
+        })
+        .finally(() => {
+            if (activeControllerRef.current === controller && !controller.signal.aborted) {
                 setIsLoadingCatches(false)
-            })
+            }
+        })
     }, [])
 
     const retryLoadCatches = () => {
@@ -39,6 +61,10 @@ export function CatchProvider({ children }: CatchProviderProps) {
 
     useEffect(() => {
         loadCatches()
+
+        return () => {
+            activeControllerRef.current?.abort()
+        }
     }, [loadCatches])
 
     return (

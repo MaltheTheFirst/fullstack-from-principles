@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
+import { useContext } from 'react'
 import CatchLogPage from '../pages/CatchLogPage'
 import { CatchProvider } from '../context/CatchProvider'
 import { useCatchLog } from '../hooks/useCatchLog'
+import { CatchContext } from '../context/CatchContext'
 
 function CatchSubmissionHarness() {
     const { 
@@ -28,6 +30,22 @@ function CatchSubmissionHarness() {
             <label htmlFor="test-length">Length</label>
             <button type="submit">Submit</button>
         </form>
+    )
+}
+
+function RetryHarness() {
+    const context = useContext(CatchContext)
+
+    if (!context) {
+        throw new Error('RetryHarness must be used within CatchProvider')
+    }
+
+    const { retryLoadCatches } = context
+
+    return (
+        <button type="button" onClick={retryLoadCatches}>
+            Force retry
+        </button>
     )
 }
 
@@ -391,4 +409,58 @@ test('retries loading catches after a failed request', async () => {
     expect(await screen.findByText('Dorada')).toBeInTheDocument()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('ignores stale GET responses', async () => {
+    let resolveA!: (response: Response) => void
+    let resolveB!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveB = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <RetryHarness />
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Force retry' }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+        resolveB({
+            ok: true,
+            json: async () => [
+                { id: 2, fish: 'Dorada', length: 42 }
+            ]
+        } as Response)
+    })
+
+    expect(screen.getByText('Dorada')).toBeInTheDocument()
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => []
+        } as Response)
+    })
+
+    expect(screen.getByText('Dorada')).toBeInTheDocument()
+
+    expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
 })
