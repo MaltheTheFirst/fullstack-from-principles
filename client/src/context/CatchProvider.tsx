@@ -55,11 +55,27 @@ export function CatchProvider({ children }: CatchProviderProps) {
         })
     }, [])
 
-    const retryLoadCatches = () => {
+    const retryLoadCatches = useCallback(() => {
         setIsLoadingCatches(true)
         setLoadError(null)
         loadCatches()
-    }
+    }, [loadCatches])
+
+    const cancelActiveLoad = useCallback(() => {
+        activeControllerRef.current?.abort()
+
+        activeControllerRef.current = null
+        setIsLoadingCatches(false)
+    }, [])
+
+    const handleCreatedCatch = useCallback((createdCatch: Catch) => {
+        if (hasLoadedCatches === true) {
+            cancelActiveLoad()
+            setCatches(currentCatches => [...currentCatches, createdCatch])
+        } else {
+            retryLoadCatches()
+        }
+    }, [hasLoadedCatches, cancelActiveLoad, retryLoadCatches])
 
     useEffect(() => {
         loadCatches()
@@ -70,7 +86,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
     }, [loadCatches])
 
     return (
-        <CatchContext value={{ catches, setCatches, isLoadingCatches, loadError, retryLoadCatches, hasLoadedCatches }}>
+        <CatchContext value={{ catches, setCatches, isLoadingCatches, loadError, retryLoadCatches, hasLoadedCatches, cancelActiveLoad, handleCreatedCatch }}>
             {children}
         </CatchContext>
     )

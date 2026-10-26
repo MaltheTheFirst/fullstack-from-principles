@@ -82,6 +82,8 @@ test('adds a catch through the catch log', async () => {
         </MemoryRouter>
     )
 
+    expect(await screen.findByText('No catches recorded yet')).toBeInTheDocument()
+
     fireEvent.change(
         screen.getByLabelText('Fish'),
         { target: { value: 'Sea Bass' } }
@@ -463,4 +465,148 @@ test('ignores stale GET responses', async () => {
     expect(screen.getByText('Dorada')).toBeInTheDocument()
 
     expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
+})
+
+test('prevents stale GET from overwriting a successfully created catch', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => []
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+                id: 1, 
+                fish: 'Dorada', 
+                length: 42
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <RetryHarness />
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(await screen.findByText('No catches recorded yet')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Force retry' }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    expect(await screen.findByText('Refreshing catches...')).toBeInTheDocument()
+
+    fireEvent.change(
+        screen.getByLabelText('Fish'),
+        { target: { value: 'Dorada' } }
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: '42' } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Add Catch' })
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    expect(screen.queryByText('Refreshing catches...')).not.toBeInTheDocument()
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => []
+        } as Response)
+    })
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
+})
+
+test('reloads catches when POST succeeds before initial GET completes', async () => {
+    let resolveA!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+                id: 1, 
+                fish: 'Dorada', 
+                length: 42
+            })
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                { id: 1, fish: 'Dorada', length: 42 }
+            ]
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <RetryHarness />
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    expect(screen.getByText('Loading catches...')).toBeInTheDocument()
+
+    fireEvent.change(
+        screen.getByLabelText('Fish'),
+        { target: { value: 'Dorada' } }
+    )
+
+    fireEvent.change(
+        screen.getByLabelText('Length'),
+        { target: { value: '42' } }
+    )
+
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Add Catch' })
+    )
+
+    await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    await act(async () => {
+        resolveA({
+            ok: true,
+            json: async () => []
+        } as Response)
+    })
+
+    expect(await screen.findByText('Dorada')).toBeInTheDocument()
+
+    expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
+
+    expect(fetchMock.mock.calls[0][1]?.signal.aborted).toBe(true)
 })
