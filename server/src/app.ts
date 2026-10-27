@@ -63,6 +63,40 @@ const createCatchSchema = {
     }
 }
 
+const updateCatchSchema = {
+    body: {
+        type: 'object',
+        minProperties: 1,
+        additionalProperties: false,
+        properties: {
+            fish: {
+                type: 'string',
+                minLength: 1,
+                pattern: '\\S'
+            },
+            length: {
+                type: 'number',
+                exclusiveMinimum: 0
+            }
+        }
+    }
+}
+
+const catchParamsSchema = {
+    params: {
+        type: 'object',
+        required: ['id'],
+        additionalProperties: false,
+        properties: {
+            id: {
+                type: 'string',
+                minLength: 1,
+                pattern: '^[1-9][0-9]*$'
+            }
+        }
+    }
+}
+
 app.get('/health', handleHealth)
 app.get('/catches', handleCatches)
 app.post<{ Body: CreateCatchBody }>('/catches', {schema: createCatchSchema}, async (request, reply) => {
@@ -76,7 +110,7 @@ app.post<{ Body: CreateCatchBody }>('/catches', {schema: createCatchSchema}, asy
 
     return reply.code(201).send(result.rows[0])
 })
-app.delete<{ Params: CatchParams }>('/catches/:id', async (request, reply) => {
+app.delete<{ Params: CatchParams }>('/catches/:id', {schema: catchParamsSchema}, async (request, reply) => {
     const catchId = Number(request.params.id)
 
     if (!Number.isSafeInteger(catchId) || catchId <= 0) {
@@ -97,37 +131,14 @@ app.delete<{ Params: CatchParams }>('/catches/:id', async (request, reply) => {
 
     return reply.code(204).send()
 })
-app.patch<{ Body: UpdateCatchBody, Params: CatchParams }>('/catches/:id', async (request, reply) => {
-    if (!request.body) {
-        return reply.code(400).send({
-            error: 'Request body is required'
-        })
+app.patch<{ Body: UpdateCatchBody, Params: CatchParams }>('/catches/:id', {
+    schema: {
+        body: updateCatchSchema.body, 
+        params: catchParamsSchema.params
     }
-
+}, async (request, reply) => {
     const { fish, length } = request.body
     const id = Number(request.params.id)
-
-    if (fish === undefined && length === undefined) {
-        return reply.code(400).send({
-            error: 'At least one field must be provided'
-        })
-    }
-
-    if (fish !== undefined) {
-        if (typeof fish !== 'string' || fish.trim() === '') {
-            return reply.code(400).send({
-                error: 'Invalid fish name'
-            })
-        }
-    }
-
-    if (length !== undefined) {
-        if (!Number.isFinite(length) || length <= 0) {
-            return reply.code(400).send({
-                error: 'Invalid catch length'
-            })
-        }
-    }
 
     if (!Number.isSafeInteger(id) || id <= 0) {
         return reply.code(400).send({
