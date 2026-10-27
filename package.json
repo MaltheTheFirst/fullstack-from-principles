@@ -9,6 +9,9 @@
       "dev:client": "npm run dev -w client",
       "build:client": "npm run build -w client",
       "test:client": "npm run test -w client -- --run",
-      "lint:client": "npm run lint -w client"
+      "lint:client": "npm run lint -w client",
+      "build:server": "npm run build -w server",
+      "test:server": "npm run test -w server -- --run",
+      "lint:server": "npm run lint -w server"
     }
 }
