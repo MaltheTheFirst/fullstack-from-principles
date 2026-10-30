@@ -1,9 +1,0 @@
-services:
-  test-db:
-    image: postgres:17
-    environment:
-      POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_password
-      POSTGRES_DB: catch_log_test
-    ports:
-      127.0.0.1:5432
