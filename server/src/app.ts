@@ -20,7 +20,7 @@ const handleHealth = () => {
     return { status: 'ok' }
 }
 
-export const app = Fastify({ 
+export const app = Fastify({
     logger: true,
     ajv: {
         customOptions: {
@@ -28,6 +28,10 @@ export const app = Fastify({
             coerceTypes: false
         }
     }
+})
+
+app.addHook('onClose', async () => {
+    await pool.end()
 })
 
 await app.register(cors, {
@@ -101,7 +105,7 @@ app.get('/health', handleHealth)
 app.get('/catches', handleCatches)
 app.post<{ Body: CreateCatchBody }>('/catches', {schema: createCatchSchema}, async (request, reply) => {
     const { fish, length } = request.body
-    
+
     const result = await pool.query(`
         INSERT INTO catches (fish, length)
         VALUES ($1, $2)
@@ -122,7 +126,7 @@ app.delete<{ Params: CatchParams }>('/catches/:id', {schema: catchParamsSchema},
     const result = await pool.query(`
         DELETE FROM catches
         WHERE id = $1
-        RETURNING id;   
+        RETURNING id;
     `, [catchId])
 
     if (result.rows.length === 0) {
@@ -133,7 +137,7 @@ app.delete<{ Params: CatchParams }>('/catches/:id', {schema: catchParamsSchema},
 })
 app.patch<{ Body: UpdateCatchBody, Params: CatchParams }>('/catches/:id', {
     schema: {
-        body: updateCatchSchema.body, 
+        body: updateCatchSchema.body,
         params: catchParamsSchema.params
     }
 }, async (request, reply) => {

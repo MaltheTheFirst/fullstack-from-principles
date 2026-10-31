@@ -7,7 +7,7 @@
         "dev": "node --env-file=.env --import tsx --watch src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
-        "test": "vitest"
+        "test": "node --env-file=.env.test ../node_modules/vitest/vitest.mjs"
     },
     "dependencies": {
         "@fastify/cors": "^11.3.1",

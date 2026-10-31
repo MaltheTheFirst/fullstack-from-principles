@@ -1,0 +1,6 @@
+CREATE TABLE catches (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    fish TEXT NOT NULL,
+    length DOUBLE PRECISION NOT NULL
+        CONSTRAINT catches_length_check CHECK (length > 0)
+);
