@@ -10,6 +10,7 @@
       "build:client": "npm run build -w client",
       "test:client": "npm run test -w client -- --run",
       "lint:client": "npm run lint -w client",
+      "dev:server": "npm run dev -w server",
       "build:server": "npm run build -w server",
       "test:server": "npm run test -w server -- --run",
       "lint:server": "npm run lint -w server"
