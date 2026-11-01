@@ -2,6 +2,7 @@ import cors from '@fastify/cors'
 import Fastify from 'fastify'
 import { pool } from './db.js'
 import { catchRoutes } from './routes/catches.js'
+import { authRoutes } from './routes/auth.js'
 
 export const app = Fastify({
     logger: true,
@@ -23,6 +24,7 @@ await app.register(cors, {
 })
 
 await app.register(catchRoutes)
+await app.register(authRoutes)
 
 const handleHealth = () => {
     return { status: 'ok' }
