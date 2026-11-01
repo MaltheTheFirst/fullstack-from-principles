@@ -7,18 +7,24 @@
         "dev": "node --env-file=.env --import tsx --watch src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
-        "test": "node --env-file=.env.test ../node_modules/vitest/vitest.mjs"
+        "test": "node --env-file=.env.test ../node_modules/vitest/vitest.mjs",
+        "lint": "eslint ."
     },
     "dependencies": {
         "@fastify/cors": "^11.3.1",
+        "argon2": "^0.45.1",
         "fastify": "^5.12.7",
         "pg": "^8.23.1"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@types/node": "^24.19.2",
         "@types/pg": "^8.23.1",
+        "eslint": "^10.14.0",
+        "globals": "^17.13.0",
         "tsx": "^4.23.15",
         "typescript": "^6.0.3",
+        "typescript-eslint": "^8.72.1",
         "vitest": "^5.0.5"
     }
 }
