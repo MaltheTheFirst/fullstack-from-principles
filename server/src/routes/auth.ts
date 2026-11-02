@@ -119,4 +119,35 @@ export async function authRoutes(app: FastifyInstance) {
 
         return reply.code(200).send({ message: 'Login successful'})
     })
+
+    app.get('/auth/me', async (request, reply) => {
+        const sessionToken = request.cookies.session
+
+        if (!sessionToken) {
+            return reply.code(401).send({ error: 'Unauthorized' })
+        }
+
+        const hashedToken = createHash('sha256').update(sessionToken).digest('hex')
+
+        const result = await pool.query(`
+            SELECT user_id
+            FROM sessions
+            WHERE token_hash = $1
+                AND expires_at > NOW();
+        `, [hashedToken])
+
+        const session = result.rows[0]
+
+        if (!session) {
+            return reply.code(401).send({ error: 'Unauthorized' })
+        }
+
+        const userData = await pool.query(`
+            SELECT id, username
+            FROM users
+            WHERE id = $1;
+        `, [session.user_id])
+
+        return reply.code(200).send(userData.rows[0])
+    })
 }

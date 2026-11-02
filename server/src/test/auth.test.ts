@@ -332,6 +332,175 @@ describe('POST /auth/login', () => {
     })
 })
 
+describe('GET /auth/me', () => {
+    it('returns the authenticated user for a valid session', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            const loginData = loginResponse.json()
+            const cookieHeader = loginResponse.headers['set-cookie']
+
+            expect(cookieHeader).toContain('HttpOnly')
+            expect(loginResponse.statusCode).toBe(200)
+            expect(loginData).toEqual({ message: 'Login successful'})
+
+            const sessionResult = await pool.query(`
+                SELECT id, token_hash, expires_at
+                FROM sessions
+                WHERE user_id = $1;
+            `, [createdUserId])
+
+            expect(sessionResult.rows.length).toBe(1)
+
+            if (typeof cookieHeader !== 'string') {
+                throw new Error('Expected a string Set-Cookie header')
+            }
+
+            const session = cookieHeader.split(';')
+            const sessionValue = session[0].split('=')[1]
+
+            const getResponse = await app.inject({
+                method: 'GET',
+                url: '/auth/me',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                }
+            })
+
+            const getResponseData = getResponse.json()
+
+            expect(getResponse.statusCode).toBe(200)
+            expect(getResponseData.username).toBe('testuser')
+            expect(getResponseData.id).toBe(createdUserId)
+        } finally {
+            if (createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+
+    it('rejects requests without a session cookie', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/auth/me'
+        })
+
+        const responseData = response.json()
+
+        expect(response.statusCode).toBe(401)
+        expect(responseData).toEqual({ error: 'Unauthorized' })
+    })
+
+    it('rejects an unknown session token', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/auth/me',
+            headers: {
+                cookie: 'session=invalidtoken'
+            }
+        })
+
+        const responseData = response.json()
+
+        expect(response.statusCode).toBe(401)
+        expect(responseData).toEqual({ error: 'Unauthorized' })
+    })
+
+    it('rejects an expired session', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            const loginData = loginResponse.json()
+            const cookieHeader = loginResponse.headers['set-cookie']
+
+            expect(cookieHeader).toContain('HttpOnly')
+            expect(loginResponse.statusCode).toBe(200)
+            expect(loginData).toEqual({ message: 'Login successful'})
+
+            const sessionResult = await pool.query(`
+                UPDATE sessions
+                SET expires_at = NOW() - INTERVAL '1 day'
+                WHERE user_id = $1
+                RETURNING id, expires_at;
+            `, [createdUserId])
+
+            expect(sessionResult.rows.length).toBe(1)
+
+            if (typeof cookieHeader !== 'string') {
+                throw new Error('Expected a string Set-Cookie header')
+            }
+
+            const session = cookieHeader.split(';')
+            const sessionValue = session[0].split('=')[1]
+
+            const getResponse = await app.inject({
+                method: 'GET',
+                url: '/auth/me',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                }
+            })
+
+            const getResponseData = getResponse.json()
+
+            expect(getResponse.statusCode).toBe(401)
+            expect(getResponseData).toEqual({ error: 'Unauthorized' })
+        } finally {
+            if (createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+})
+
 afterAll(async () => {
     await app.close()
 })
