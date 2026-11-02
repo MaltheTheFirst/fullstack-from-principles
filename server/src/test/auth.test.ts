@@ -1,6 +1,7 @@
 import { describe, it, expect, afterAll } from 'vitest'
 import { app } from '../app.js'
 import { pool } from '../db.js'
+import { createHash } from 'node:crypto'
 import argon2 from 'argon2'
 
 describe('POST /auth/register', () => {
@@ -169,6 +170,159 @@ describe('POST /auth/register', () => {
             expect(invalidPassword).toBe(false)
         } finally {
             if(createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+})
+
+describe('POST /auth/login', () => {
+    it('creates a session and return a HttpOnly cookie for valid credentials', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            const loginData = loginResponse.json()
+            const cookieHeader = loginResponse.headers['set-cookie']
+
+            expect(cookieHeader).toContain('HttpOnly')
+            expect(loginResponse.statusCode).toBe(200)
+            expect(loginData).toEqual({ message: 'Login successful'})
+
+            const sessionResult = await pool.query(`
+                SELECT id, token_hash, expires_at
+                FROM sessions
+                WHERE user_id = $1;
+            `, [createdUserId])
+
+            expect(sessionResult.rows.length).toBe(1)
+
+            if (typeof cookieHeader !== 'string') {
+                throw new Error('Expected a string Set-Cookie header')
+            }
+
+            const session = cookieHeader.split(';')
+            const sessionValue = session[0].split('=')[1]
+
+            const hashedSessionValue = createHash('sha256').update(sessionValue).digest('hex')
+
+            expect(sessionResult.rows[0].token_hash).toEqual(hashedSessionValue)
+        } finally {
+            if (createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+
+    it('rejects an incorrect password without creating a session', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: 'testuser',
+                    password: 'wrongpassword'
+                }
+            })
+
+            expect(loginResponse.statusCode).toBe(401)
+            expect(loginResponse.json()).toEqual({ error: 'Invalid username or password'})
+
+            const sessionResult = await pool.query(`
+                SELECT id, token_hash, expires_at
+                FROM sessions
+                WHERE user_id = $1;
+            `, [createdUserId])
+
+            expect(sessionResult.rows.length).toBe(0)
+            expect(loginResponse.headers['set-cookie']).toBeUndefined()
+        } finally {
+            if (createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+
+    it('rejects an unknown username without creating a session', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: 'wronguser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(loginResponse.statusCode).toBe(401)
+            expect(loginResponse.json()).toEqual({ error: 'Invalid username or password'})
+
+            const sessionResult = await pool.query(`
+                SELECT COUNT(*)
+                FROM sessions;
+            `)
+
+            expect(sessionResult.rows[0].count).toBe('0')
+            expect(loginResponse.headers['set-cookie']).toBeUndefined()
+        } finally {
+            if (createdUserId !== null) {
                 await pool.query(`
                     DELETE FROM users
                     WHERE id = $1;
