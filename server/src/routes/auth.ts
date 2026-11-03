@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { randomBytes, createHash } from 'node:crypto'
 import { DatabaseError } from 'pg'
 import { pool } from '../db.js'
+import { resolveSession } from '../auth/session.js'
 import argon2 from 'argon2'
 
 type RegisterBody = {
@@ -127,27 +128,12 @@ export async function authRoutes(app: FastifyInstance) {
             return reply.code(401).send({ error: 'Unauthorized' })
         }
 
-        const hashedToken = createHash('sha256').update(sessionToken).digest('hex')
+        const validatedSession = await resolveSession(sessionToken)
 
-        const result = await pool.query(`
-            SELECT user_id
-            FROM sessions
-            WHERE token_hash = $1
-                AND expires_at > NOW();
-        `, [hashedToken])
-
-        const session = result.rows[0]
-
-        if (!session) {
+        if (validatedSession === null) {
             return reply.code(401).send({ error: 'Unauthorized' })
         }
 
-        const userData = await pool.query(`
-            SELECT id, username
-            FROM users
-            WHERE id = $1;
-        `, [session.user_id])
-
-        return reply.code(200).send(userData.rows[0])
+        return reply.code(200).send(validatedSession)
     })
 }

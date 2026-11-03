@@ -19,14 +19,17 @@ app.addHook('onClose', async () => {
     await pool.end()
 })
 
+app.decorateRequest('authenticatedUser', null)
+
 await app.register(cors, {
     origin: 'http://localhost:5173',
     methods: ['GET', 'POST', 'PATCH', 'DELETE']
 })
 
+await app.register(cookie)
+
 await app.register(catchRoutes)
 await app.register(authRoutes)
-await app.register(cookie)
 
 const handleHealth = () => {
     return { status: 'ok' }

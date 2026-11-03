@@ -2,7 +2,14 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { app } from '../app.js'
 import { pool } from '../db.js'
 import { createHash } from 'node:crypto'
+import { requireAuth } from '../auth/requireAuth.js'
 import argon2 from 'argon2'
+
+app.get('/test/protected', {
+    preHandler: requireAuth
+}, async (request) => {
+    return { user: request.authenticatedUser }
+})
 
 describe('POST /auth/register', () => {
     it('creates a user and returns their public information', async () => {
@@ -490,6 +497,93 @@ describe('GET /auth/me', () => {
 
             expect(getResponse.statusCode).toBe(401)
             expect(getResponseData).toEqual({ error: 'Unauthorized' })
+        } finally {
+            if (createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+})
+
+describe('requireAuth preHandler', () => {
+    it('rejects a missing cookie', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/test/protected'
+        })
+
+        expect(response.statusCode).toBe(401)
+        expect(response.json()).toEqual({ error: 'Unauthorized' })
+    })
+
+    it('rejects an invalid cookie', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/test/protected',
+            headers: {
+                cookie: 'session=invalidsession'
+            }
+        })
+
+        expect(response.statusCode).toBe(401)
+        expect(response.json()).toEqual({ error: 'Unauthorized' })
+    })
+
+    it('allows a valid session and exposes the authenticated user', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: 'testuser',
+                    password: 'testpassword123'
+                }
+            })
+
+            const loginData = loginResponse.json()
+            const cookieHeader = loginResponse.headers['set-cookie']
+
+            expect(cookieHeader).toContain('HttpOnly')
+            expect(loginResponse.statusCode).toBe(200)
+            expect(loginData).toEqual({ message: 'Login successful'})
+
+            if (typeof cookieHeader !== 'string') {
+                throw new Error('Expected a string Set-Cookie header')
+            }
+
+            const session = cookieHeader.split(';')
+            const sessionValue = session[0].split('=')[1]
+
+            const getResponse = await app.inject({
+                method: 'GET',
+                url: '/test/protected',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                }
+            })
+
+            const getResponseData = getResponse.json()
+
+            expect(getResponse.statusCode).toBe(200)
+            expect(getResponseData.user.username).toBe('testuser')
+            expect(getResponseData.user.id).toBe(createdUserId)
         } finally {
             if (createdUserId !== null) {
                 await pool.query(`
