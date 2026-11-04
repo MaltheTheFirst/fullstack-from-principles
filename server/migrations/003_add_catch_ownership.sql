@@ -1,0 +1,14 @@
+BEGIN;
+
+ALTER TABLE catches
+ADD COLUMN user_id INTEGER
+REFERENCES users(id) ON DELETE CASCADE;
+
+UPDATE catches
+SET user_id = 1
+WHERE user_id IS NULL;
+
+ALTER TABLE catches
+ALTER COLUMN user_id SET NOT NULL;
+
+COMMIT;
