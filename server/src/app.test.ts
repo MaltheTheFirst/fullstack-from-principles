@@ -1,4 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest'
+import { pool } from './db.js'
 import { app } from './app.js'
 
 describe('GET /health', () => {
@@ -21,11 +22,11 @@ describe('POST /catches', () => {
             payload: {
                 fish: 'Dorada',
                 length: -5
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -36,11 +37,11 @@ describe('POST /catches', () => {
             url: '/catches',
             payload: {
                 fish: 'Dorada'
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -52,11 +53,11 @@ describe('POST /catches', () => {
             payload: {
                 fish: ' ',
                 length: 42
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -69,11 +70,11 @@ describe('POST /catches', () => {
                 fish: 'Dorada',
                 length: 42,
                 isAdmin: true
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -85,11 +86,11 @@ describe('POST /catches', () => {
             payload: {
                 fish: 'Dorada',
                 length: '42'
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -100,11 +101,11 @@ describe('PATCH /catches/:id', () => {
         const response = await app.inject({
             method: 'PATCH',
             url: '/catches/1',
-            payload: {} 
+            payload: {}
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -116,11 +117,11 @@ describe('PATCH /catches/:id', () => {
             payload: {
                 fish: ' ',
                 length: 42
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -133,11 +134,11 @@ describe('PATCH /catches/:id', () => {
                 fish: 'Dorada',
                 length: 42,
                 isAdmin: true
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -149,11 +150,11 @@ describe('PATCH /catches/:id', () => {
             payload: {
                 fish: 'Dorada',
                 length: -5
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
@@ -164,28 +165,80 @@ describe('PATCH /catches/:id', () => {
             url: '/catches/abc',
             payload: {
                 fish: 'Dorada'
-            } 
+            }
         })
 
         expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
+        expect(response.json()).toMatchObject({
             code: 'FST_ERR_VALIDATION'
         })
     })
 
     it('rejects an unsafe integer catch ID', async () => {
-        const response = await app.inject({
-            method: 'PATCH',
-            url: '/catches/9007199254740992',
-            payload: {
-                fish: 'Dorada'
-            }
-        })
+        let createdUserId: number | null = null
 
-        expect(response.statusCode).toBe(400)
-        expect(response.json()).toMatchObject({ 
-            error: 'ID must be a positive integer'
-        })
+        try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: username,
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: username,
+                    password: 'testpassword123'
+                }
+            })
+
+            const loginData = loginResponse.json()
+            const cookieHeader = loginResponse.headers['set-cookie']
+
+            expect(cookieHeader).toContain('HttpOnly')
+            expect(loginResponse.statusCode).toBe(200)
+            expect(loginData).toEqual({ message: 'Login successful'})
+
+            if (typeof cookieHeader !== 'string') {
+                throw new Error('Expected a string Set-Cookie header')
+            }
+
+            const session = cookieHeader.split(';')
+            const sessionValue = session[0].split('=')[1]
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/catches/9007199254740992',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                },
+                payload: {
+                    fish: 'Dorada'
+                }
+            })
+
+            expect(response.statusCode).toBe(400)
+            expect(response.json()).toMatchObject({
+                error: 'ID must be a positive integer'
+            })
+        } finally {
+            if(createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
     })
 })
 

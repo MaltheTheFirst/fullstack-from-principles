@@ -4,6 +4,8 @@ import { pool } from '../db.js'
 import { createHash } from 'node:crypto'
 import { requireAuth } from '../auth/requireAuth.js'
 import argon2 from 'argon2'
+import { create } from 'node:domain'
+import { createAuthenticatedTestUser } from './helpers.js'
 
 app.get('/test/protected', {
     preHandler: requireAuth
@@ -16,11 +18,13 @@ describe('POST /auth/register', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const response = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -29,7 +33,7 @@ describe('POST /auth/register', () => {
 
             const authData = response.json()
 
-            expect(authData.username).toEqual('testuser')
+            expect(authData.username).toEqual(username)
             expect(authData).not.toHaveProperty('password')
             expect(authData).not.toHaveProperty('password_hash')
             expect(Number.isSafeInteger(authData.id) && authData.id > 0).toBe(true)
@@ -43,7 +47,7 @@ describe('POST /auth/register', () => {
             `, [createdUserId])
 
             expect(persistence.rows.length).toBe(1)
-            expect(persistence.rows[0].username).toEqual('testuser')
+            expect(persistence.rows[0].username).toEqual(username)
             expect(persistence.rows[0].id).toEqual(createdUserId)
         } finally {
             if(createdUserId !== null) {
@@ -139,12 +143,13 @@ describe('POST /auth/register', () => {
 
         try {
             const plaintextPassword = 'testpassword123'
+            const username = `test${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
 
             const response = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: plaintextPassword
                 }
             })
@@ -153,7 +158,7 @@ describe('POST /auth/register', () => {
 
             const authData = response.json()
 
-            expect(authData.username).toEqual('testuser')
+            expect(authData.username).toEqual(username)
             expect(authData).not.toHaveProperty('password')
             expect(authData).not.toHaveProperty('password_hash')
             expect(Number.isSafeInteger(authData.id) && authData.id > 0).toBe(true)
@@ -191,11 +196,13 @@ describe('POST /auth/login', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const registerResponse = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -207,7 +214,7 @@ describe('POST /auth/login', () => {
                 method: 'POST',
                 url: '/auth/login',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -251,11 +258,13 @@ describe('POST /auth/login', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const registerResponse = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -267,7 +276,7 @@ describe('POST /auth/login', () => {
                 method: 'POST',
                 url: '/auth/login',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'wrongpassword'
                 }
             })
@@ -297,11 +306,13 @@ describe('POST /auth/login', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const registerResponse = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -323,8 +334,9 @@ describe('POST /auth/login', () => {
 
             const sessionResult = await pool.query(`
                 SELECT COUNT(*)
-                FROM sessions;
-            `)
+                FROM sessions
+                WHERE user_id = $1;
+            `, [createdUserId])
 
             expect(sessionResult.rows[0].count).toBe('0')
             expect(loginResponse.headers['set-cookie']).toBeUndefined()
@@ -344,11 +356,13 @@ describe('GET /auth/me', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const registerResponse = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -360,7 +374,7 @@ describe('GET /auth/me', () => {
                 method: 'POST',
                 url: '/auth/login',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -398,7 +412,7 @@ describe('GET /auth/me', () => {
             const getResponseData = getResponse.json()
 
             expect(getResponse.statusCode).toBe(200)
-            expect(getResponseData.username).toBe('testuser')
+            expect(getResponseData.username).toBe(username)
             expect(getResponseData.id).toBe(createdUserId)
         } finally {
             if (createdUserId !== null) {
@@ -441,11 +455,13 @@ describe('GET /auth/me', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const registerResponse = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -457,7 +473,7 @@ describe('GET /auth/me', () => {
                 method: 'POST',
                 url: '/auth/login',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -536,11 +552,13 @@ describe('requireAuth preHandler', () => {
         let createdUserId: number | null = null
 
         try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
             const registerResponse = await app.inject({
                 method: 'POST',
                 url: '/auth/register',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -552,7 +570,7 @@ describe('requireAuth preHandler', () => {
                 method: 'POST',
                 url: '/auth/login',
                 payload: {
-                    username: 'testuser',
+                    username: username,
                     password: 'testpassword123'
                 }
             })
@@ -582,7 +600,7 @@ describe('requireAuth preHandler', () => {
             const getResponseData = getResponse.json()
 
             expect(getResponse.statusCode).toBe(200)
-            expect(getResponseData.user.username).toBe('testuser')
+            expect(getResponseData.user.username).toBe(username)
             expect(getResponseData.user.id).toBe(createdUserId)
         } finally {
             if (createdUserId !== null) {
@@ -591,6 +609,22 @@ describe('requireAuth preHandler', () => {
                     WHERE id = $1;
                 `, [createdUserId])
             }
+        }
+    })
+
+    it('', async () => {
+        const alice = await createAuthenticatedTestUser()
+
+        try {
+            const bob = await createAuthenticatedTestUser()
+
+            try {
+
+            } finally {
+                await bob.cleanup()
+            }
+        } finally {
+            await alice.cleanup()
         }
     })
 })

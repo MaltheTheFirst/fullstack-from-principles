@@ -1,4 +1,5 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
+import { requireAuth } from '../auth/requireAuth.js'
 import { pool } from '../db.js'
 
 type CatchParams = {
@@ -15,11 +16,20 @@ type UpdateCatchBody= {
     length?: number
 }
 
-const handleCatches = async () => {
+const handleCatches = async (request: FastifyRequest) => {
+    const user = request.authenticatedUser
+
+    if (!user) {
+        throw new Error('AuthenticatedUser missing after requireAuth')
+    }
+
+    const userId = user.id
+
     const result = await pool.query(`
         SELECT id, fish, length
-        FROM catches;
-    `)
+        FROM catches
+        WHERE user_id = $1;
+    `, [userId])
 
     return result.rows
 }
@@ -78,19 +88,43 @@ const catchParamsSchema = {
 }
 
 export async function catchRoutes(app: FastifyInstance) {
-    app.get('/catches', handleCatches)
-    app.post<{ Body: CreateCatchBody }>('/catches', {schema: createCatchSchema}, async (request, reply) => {
+    app.get('/catches', {
+        preHandler: requireAuth
+    }, handleCatches)
+    app.post<{ Body: CreateCatchBody }>('/catches', {
+        schema: createCatchSchema,
+        preHandler: requireAuth
+    }, async (request, reply) => {
+        const user = request.authenticatedUser
+
+        if (!user) {
+            throw new Error('AuthenticatedUser is missing after requireAuth')
+        }
+
+        const userId = user.id
+
         const { fish, length } = request.body
 
         const result = await pool.query(`
-            INSERT INTO catches (fish, length)
-            VALUES ($1, $2)
+            INSERT INTO catches (fish, length, user_id)
+            VALUES ($1, $2, $3)
             RETURNING id, fish, length;
-        `, [fish, length])
+        `, [fish, length, userId])
 
         return reply.code(201).send(result.rows[0])
     })
-    app.delete<{ Params: CatchParams }>('/catches/:id', {schema: catchParamsSchema}, async (request, reply) => {
+    app.delete<{ Params: CatchParams }>('/catches/:id', {
+        schema: catchParamsSchema,
+        preHandler: requireAuth
+    }, async (request, reply) => {
+        const user = request.authenticatedUser
+
+        if (!user) {
+            throw new Error('AuthenticatedUser is missing after requireAuth')
+        }
+
+        const userId = user.id
+
         const catchId = Number(request.params.id)
 
         if (!Number.isSafeInteger(catchId) || catchId <= 0) {
@@ -102,8 +136,9 @@ export async function catchRoutes(app: FastifyInstance) {
         const result = await pool.query(`
             DELETE FROM catches
             WHERE id = $1
+                AND user_id = $2
             RETURNING id;
-        `, [catchId])
+        `, [catchId, userId])
 
         if (result.rows.length === 0) {
             return reply.code(404).send('Catch not found')
@@ -115,8 +150,17 @@ export async function catchRoutes(app: FastifyInstance) {
         schema: {
             body: updateCatchSchema.body,
             params: catchParamsSchema.params
-        }
+        },
+        preHandler: requireAuth
     }, async (request, reply) => {
+        const user = request.authenticatedUser
+
+        if (!user) {
+            throw new Error('AuthenticatedUser missing after requireAuth')
+        }
+
+        const userId = user.id
+
         const { fish, length } = request.body
         const id = Number(request.params.id)
 
@@ -132,8 +176,9 @@ export async function catchRoutes(app: FastifyInstance) {
                 fish = COALESCE($1, fish),
                 length = COALESCE($2, length)
             WHERE id = $3
+                AND user_id = $4
             RETURNING id, fish, length;
-        `, [fish, length, id])
+        `, [fish, length, id, userId])
 
         if (result.rows.length === 0) {
             return reply.code(404).send({
