@@ -611,22 +611,6 @@ describe('requireAuth preHandler', () => {
             }
         }
     })
-
-    it('', async () => {
-        const alice = await createAuthenticatedTestUser()
-
-        try {
-            const bob = await createAuthenticatedTestUser()
-
-            try {
-
-            } finally {
-                await bob.cleanup()
-            }
-        } finally {
-            await alice.cleanup()
-        }
-    })
 })
 
 afterAll(async () => {
