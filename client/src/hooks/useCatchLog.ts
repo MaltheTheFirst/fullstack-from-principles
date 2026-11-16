@@ -182,8 +182,9 @@ export function useCatchLog() {
             return next
         })
 
-        fetch(`http://127.0.0.1:3001/catches/${id}`, {
+        fetch(`http://localhost:3001/catches/${id}`, {
             method: 'DELETE',
+            credentials: 'include'
         })
         .then(response => {
             if (!response.ok) {
@@ -252,12 +253,13 @@ export function useCatchLog() {
             setIsUpdating(true)
             setUpdateError(null)
 
-            fetch(`http://127.0.0.1:3001/catches/${formState.editingId}`, {
+            fetch(`http://localhost:3001/catches/${formState.editingId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(validatedCatch)
+                body: JSON.stringify(validatedCatch),
+                credentials: 'include'
             })
                 .then(response => {
                     if (!response.ok) {
@@ -297,12 +299,13 @@ export function useCatchLog() {
         setIsCreating(true)
         setCreateError(null)
 
-        fetch('http://127.0.0.1:3001/catches', {
+        fetch('http://localhost:3001/catches', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(validatedCatch)
+            body: JSON.stringify(validatedCatch),
+            credentials: 'include'
         })
             .then(response => {
                 if (!response.ok) {

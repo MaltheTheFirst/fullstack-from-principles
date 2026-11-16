@@ -20,8 +20,9 @@ export function CatchProvider({ children }: CatchProviderProps) {
         const controller = new AbortController()
         activeControllerRef.current = controller
 
-        fetch('http://127.0.0.1:3001/catches', { 
-            signal: controller.signal
+        fetch('http://localhost:3001/catches', { 
+            signal: controller.signal,
+            credentials: 'include'
         })
         .then(response => {
             if (!response.ok) {
