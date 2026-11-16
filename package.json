@@ -6,6 +6,8 @@
       "server"
     ],
     "scripts": {
+      "lint": "npm run lint -w client && npm run lint -w server",
+      "build": "npm run build -w client && npm run build -w server",
       "dev:client": "npm run dev -w client",
       "build:client": "npm run build -w client",
       "test:client": "npm run test -w client -- --run",

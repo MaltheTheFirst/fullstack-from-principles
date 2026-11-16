@@ -4,8 +4,6 @@ import { pool } from '../db.js'
 import { createHash } from 'node:crypto'
 import { requireAuth } from '../auth/requireAuth.js'
 import argon2 from 'argon2'
-import { create } from 'node:domain'
-import { createAuthenticatedTestUser } from './helpers.js'
 
 app.get('/test/protected', {
     preHandler: requireAuth

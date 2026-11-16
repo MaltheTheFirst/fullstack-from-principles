@@ -2,7 +2,6 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { createAuthenticatedTestUser } from './test/helpers.js'
 import { app } from './app.js'
 import { pool } from './db.js'
-import { create } from 'domain'
 
 describe('POST /catches persistence', () => {
     it('persists a created catch in PostgreSQL', async () => {
