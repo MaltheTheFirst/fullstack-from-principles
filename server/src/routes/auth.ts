@@ -121,6 +121,22 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.code(200).send({ message: 'Login successful'})
     })
 
+    app.post('/auth/logout', async (request, reply) => {
+        const sessionToken = request.cookies.session
+
+        if (sessionToken !== undefined) {
+            const tokenHash = createHash('sha256').update(sessionToken).digest('hex')
+
+            await pool.query(`
+                DELETE FROM sessions
+                WHERE token_hash = $1    
+            `, [tokenHash])
+        }
+
+        reply.clearCookie('session', { path: '/' })
+        return reply.code(200).send({ message: 'Logout successful' })
+    })
+
     app.get('/auth/me', async (request, reply) => {
         const sessionToken = request.cookies.session
 

@@ -611,6 +611,118 @@ describe('requireAuth preHandler', () => {
     })
 })
 
+describe('POST /auth/logout', () => {
+    it('Returns 401 Unauthorized when user request GET /auth/me after logout', async () => {
+        let createdUserId: number | null = null
+
+        try {
+            const username = `test${crypto.randomUUID().slice(0, 8)}`
+
+            const registerResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/register',
+                payload: {
+                    username: username,
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(registerResponse.statusCode).toBe(201)
+            createdUserId = registerResponse.json().id
+
+            const loginResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/login',
+                payload: {
+                    username: username,
+                    password: 'testpassword123'
+                }
+            })
+
+            expect(loginResponse.statusCode).toBe(200)
+
+            const cookieHeader = loginResponse.headers['set-cookie']
+
+            if (typeof cookieHeader !== 'string') {
+                throw new Error('Expected a string Set-Cookie header')
+            }
+
+            const session = cookieHeader.split(';')
+            const sessionValue = session[0].split('=')[1]
+
+            const validationResponse = await app.inject({
+                method: 'GET',
+                url: '/auth/me',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                }
+            })
+
+            expect(validationResponse.statusCode).toBe(200)
+
+            const logoutResponse = await app.inject({
+                method: 'POST',
+                url: '/auth/logout',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                }
+            })
+
+            const logoutCookieHeader = logoutResponse.headers['set-cookie']
+
+            expect(logoutResponse.statusCode).toBe(200)
+            expect(logoutCookieHeader).toContain('Max-Age=0')
+            expect(logoutCookieHeader).toContain('session=')
+
+            const getResponse = await app.inject({
+                method: 'GET',
+                url: '/auth/me',
+                headers: {
+                    cookie: `session=${sessionValue}`
+                }
+            })
+
+            expect(getResponse.statusCode).toBe(401)
+        } finally {
+            if (createdUserId !== null) {
+                await pool.query(`
+                    DELETE FROM users
+                    WHERE id = $1;
+                `, [createdUserId])
+            }
+        }
+    })
+
+    it('returns 200 when no session cookie exists', async () => {
+        const logoutResponse = await app.inject({
+            method: 'POST',
+            url: '/auth/logout'
+        })
+
+        const logoutCookieHeader = logoutResponse.headers['set-cookie']
+
+        expect(logoutResponse.statusCode).toBe(200)
+        expect(logoutCookieHeader).toContain('Max-Age=0')
+        expect(logoutCookieHeader).toContain('session=')
+    })
+
+    it('returns 200 when the session token is invalid', async () => {
+        const logoutResponse = await app.inject({
+            method: 'POST',
+            url: '/auth/logout',
+            headers: {
+                cookie: 'session=invalid-session'
+            }
+        })
+
+        const logoutCookieHeader = logoutResponse.headers['set-cookie']
+
+        expect(logoutResponse.statusCode).toBe(200)
+        expect(logoutCookieHeader).toContain('Max-Age=0')
+        expect(logoutCookieHeader).toContain('session=')
+    })
+})
+
 afterAll(async () => {
     await app.close()
 })
