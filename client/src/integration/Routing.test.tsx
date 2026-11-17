@@ -2,6 +2,15 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import App from '../App'
 import { CatchProvider } from '../context/CatchProvider'
+import { AuthContext } from '../context/AuthContext'
+
+const testAuth = {
+    user: { id: 1, username: 'alice' },
+    isLoading: false,
+    error: null,
+    login: vi.fn(),
+    logout: vi.fn()
+}
 
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -19,9 +28,11 @@ test('opens the correct catch detail from the log', async () => {
 
     render(
         <MemoryRouter initialEntries={['/']}>
-            <CatchProvider>
-                <App />
-            </CatchProvider>
+            <AuthContext value={testAuth}>
+                <CatchProvider>
+                    <App />
+                </CatchProvider>
+            </AuthContext>
         </MemoryRouter>
     )
 
@@ -59,9 +70,11 @@ test('opens the correct catch detail from the log', async () => {
 test('shows not found for an invalid catch id', () => {
     render(
         <MemoryRouter initialEntries={['/catches/999999']}>
-            <CatchProvider>
-                <App />
-            </CatchProvider>
+            <AuthContext value={testAuth}>
+                <CatchProvider>
+                    <App />
+                </CatchProvider>
+            </AuthContext>
         </MemoryRouter>
     )
 

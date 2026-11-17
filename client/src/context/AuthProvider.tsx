@@ -1,9 +1,8 @@
 import type { ReactNode } from "react"
 import type { CurrentUser } from "../api/auth"
-
+import { getCurrentUser, login as apiLogin, logout as apiLogout } from "../api/auth"
 import { useState, useEffect } from "react"
 import { AuthContext } from "./AuthContext"
-import { getCurrentUser, login as apiLogin } from "../api/auth"
 import { AuthScreen } from "../components/AuthScreen"
 
 type AuthProviderProps = {
@@ -48,6 +47,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(currentUser)
     }
 
+    async function logout() {
+        await apiLogout()
+        setUser(null)
+    }
+
 
     if (isLoading) {
         return <p>Checking session...</p>
@@ -58,7 +62,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return (
-        <AuthContext value={ {user, isLoading, error, login }}>
+        <AuthContext value={ {user, isLoading, error, login, logout }}>
             {user === null ? <AuthScreen/> : children}
         </AuthContext>
     )

@@ -66,3 +66,14 @@ export async function register(username: string, password: string): Promise<Curr
 
     return (user)
 }
+
+export async function logout(): Promise<void> {
+    const response = await fetch('http://localhost:3001/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+    })
+
+    if (!response.ok) {
+        throw new Error('Failed to log out')
+    }
+}
