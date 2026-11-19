@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { register } from "../api/auth"
+import styles from './AuthForm.module.css'
 
 export function RegisterForm() {
     const [username, setUsername] = useState('')
@@ -25,34 +26,45 @@ export function RegisterForm() {
     }
 
     return (
-        <form onSubmit={handleSubmit}>
-            <label htmlFor='username'>Username</label>
-            <input 
-                required
-                id='username'
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-            />
+        <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
+                <label htmlFor='username'>Username</label>
+                <input
+                    className={styles.input}
+                    required
+                    id='username'
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                />
+            </div>
+            <div className={styles.field}>
             <label htmlFor='password'>Password</label>
-            <input
-                required
-                id='password'
-                type='password'
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-            />
-            <button type='submit' disabled={isSubmitting}>
+                <input
+                    className={styles.input}
+                    required
+                    minLength={12}
+                    id='password'
+                    type='password'
+                    aria-describedby='password-hint'
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                />
+                <p className={styles.hint} id='password-hint'>
+                    Use at least 12 characters
+                </p>
+            </div>
+            <button type='submit' disabled={isSubmitting} className={styles.submit}>
                 {isSubmitting ? 'Registering...' : 'Register'}
             </button>
 
             {registrationError !== null && (
-                <p id='registration-error' role='alert'>
+                <p id='registration-error' role='alert' className={styles.error}>
                     {registrationError}
                 </p>
             )}
 
             {registrationSuccess && (
-                <p id='registration-success' role='status'>
+                <p id='registration-success' role='status' className={styles.success}>
                     Registration successful! You can now log in
                 </p>
             )}

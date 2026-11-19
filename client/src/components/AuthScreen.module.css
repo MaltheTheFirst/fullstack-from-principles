@@ -1,0 +1,47 @@
+.page {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+.card {
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    padding: 2rem;
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    box-shadow: var(--shadow);
+
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.switchMode {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.header {
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+}
+
+.header p {
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.5;
+}

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useAuth } from "../hooks/useAuth"
+import styles from './AuthForm.module.css'
 
 export function LoginForm() {
     const [username, setUsername] = useState('')
@@ -24,28 +25,34 @@ export function LoginForm() {
     }
     
     return (
-        <form onSubmit={handleSubmit}>
-            <label htmlFor='username'>Username</label>
-            <input
-                required
-                id='username'
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-            />
-            <label htmlFor='password'>Password</label>
-            <input
-                required
-                id='password'
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type='password'
-            />
-            <button type='submit' disabled={isSubmitting}>
+        <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
+                <label htmlFor='username'>Username</label>
+                <input
+                    className={styles.input}
+                    required
+                    id='username'
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                />
+            </div>
+            <div className={styles.field}>
+                <label htmlFor='password'>Password</label>
+                <input
+                    className={styles.input}
+                    required
+                    id='password'
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    type='password'
+                />
+            </div>
+            <button type='submit' disabled={isSubmitting} className={styles.submit}>
                 {isSubmitting ? 'Logging in...' : 'Log in'}
             </button>
 
             {loginError !== null && (
-                <p id='login-error' role='alert'>
+                <p id='login-error' role='alert' className={styles.error}>
                     {loginError}
                 </p>
             )}
