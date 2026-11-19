@@ -7,6 +7,7 @@ type AuthContextValue = {
     error: string | null
     login: (username: string, password: string) => Promise<void>
     logout: () => Promise<void>
+    invalidateSession: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

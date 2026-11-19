@@ -1,6 +1,9 @@
 import { useReducer, useRef , useCallback, useState, useMemo } from 'react'
 import { useCatches } from '../context/useCatches'
 import { catchFormSchema } from '../schemas/catchFormSchema'
+import { useAuth } from './useAuth'
+import { HttpError } from '../api/HttpError'
+import { checkResponse } from '../api/checkResponse'
 
 type CatchFormState = {
   fish: string
@@ -106,6 +109,7 @@ export function useCatchLog() {
     const updatingRef = useRef(false)
     const creatingRef = useRef(false)
     const deletingIdsRef = useRef(new Set<number>())
+    const { invalidateSession } = useAuth()
 
     const { filteredCatches, sortedCatches } = useMemo(() => {
         const filteredCatches = catches.filter((catchItem) => {
@@ -128,7 +132,7 @@ export function useCatchLog() {
             filteredCatches,
             sortedCatches
         }
-		}, [catches, search, sortOrder])
+    }, [catches, search, sortOrder])
 
     const catchCount = catches.length
     
@@ -187,9 +191,7 @@ export function useCatchLog() {
             credentials: 'include'
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to delete catch')
-            }
+            checkResponse(response, 'Failed to delete catch')
 
             setCatches((currentCatches) => {
                 return currentCatches.filter((catchItem) => {
@@ -198,8 +200,17 @@ export function useCatchLog() {
             })
         })
         .catch(error => {
+            if (error instanceof HttpError) {
+                if (error.status === 401) {
+                    setDeleteError('Your session has expired. Please log in again')
+                    invalidateSession()
+                } else {
+                    setDeleteError('Failed to delete catch. Please try again')
+                }
+            } else {
+                setDeleteError('Unable to complete the request. Please try again')
+            }
             console.error(error)
-            setDeleteError('Failed to delete catch')
         })
         .finally(() => {
             deletingIdsRef.current.delete(id)
@@ -209,7 +220,7 @@ export function useCatchLog() {
                 return next
             })
         })
-    }, [setCatches])
+    }, [setCatches, invalidateSession])
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		  	event.preventDefault()
@@ -262,10 +273,7 @@ export function useCatchLog() {
                 credentials: 'include'
             })
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to update catch')
-                    }
-
+                    checkResponse(response, 'Failed to update catch')
                     return response.json()
                 })
                 .then(updatedCatch => {
@@ -283,8 +291,17 @@ export function useCatchLog() {
 
                 })
                 .catch(error => {
+                    if (error instanceof HttpError) {
+                        if (error.status === 401) {
+                            setUpdateError('Your session has expired. Please log in again')
+                            invalidateSession()
+                        } else {
+                            setUpdateError('Failed to update catch. Please try again')
+                        }
+                    } else {
+                        setUpdateError('Unable to complete the request. Please try again.')
+                    }
                     console.error(error)
-                    setUpdateError('Failed to update catch')
                 })
                 .finally(() => {
                     updatingRef.current = false
@@ -307,25 +324,31 @@ export function useCatchLog() {
             body: JSON.stringify(validatedCatch),
             credentials: 'include'
         })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to create catch')
+        .then(response => {
+            checkResponse(response, 'Failed to create catch')
+            return response.json()
+        })
+        .then(data => {
+            handleCreatedCatch(data)
+            dispatch({ type: "reset" })
+        })
+        .catch(error => {
+            if (error instanceof HttpError) {
+                if (error.status === 401) {
+                    setCreateError('Your session has expired. Please log in again')
+                    invalidateSession()
+                } else {
+                    setCreateError('Failed to create catch. Please try again')
                 }
-
-                return response.json()
-            })
-            .then(data => {
-                handleCreatedCatch(data)
-                dispatch({ type: "reset" })
-            })
-            .catch(error => {
-                setCreateError('Failed to create catch')
-                console.error(error)
-            }) 
-            .finally(() => {
-                setIsCreating(false)
-                creatingRef.current = false
-            })
+            } else {
+                setCreateError('Unable to complete the request. Please try again.')
+            }
+            console.error(error)
+        })
+        .finally(() => {
+            setIsCreating(false)
+            creatingRef.current = false
+        })
 	}
 
     function handleFishChange(value: string) {

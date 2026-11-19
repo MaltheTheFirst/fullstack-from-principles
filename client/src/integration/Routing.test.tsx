@@ -9,7 +9,8 @@ const testAuth = {
     isLoading: false,
     error: null,
     login: vi.fn(),
-    logout: vi.fn()
+    logout: vi.fn(),
+    invalidateSession: vi.fn()
 }
 
 afterEach(() => {

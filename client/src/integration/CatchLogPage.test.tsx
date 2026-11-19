@@ -1,10 +1,21 @@
 import { render, screen, fireEvent, within, waitFor, act, renderHook } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { useContext } from 'react'
+import { vi } from 'vitest'
 import CatchLogPage from '../pages/CatchLogPage'
 import { CatchProvider } from '../context/CatchProvider'
 import { useCatchLog } from '../hooks/useCatchLog'
 import { CatchContext } from '../context/CatchContext'
+
+const { mockInvalidateSession } = vi.hoisted(() => ({
+    mockInvalidateSession: vi.fn()
+}))
+
+vi.mock('../hooks/useAuth', () => ({
+    useAuth: () => ({
+        invalidateSession: mockInvalidateSession
+    })
+}))
 
 function CatchSubmissionHarness() {
     const { 
@@ -48,6 +59,10 @@ function RetryHarness() {
         </button>
     )
 }
+
+beforeEach(() => {
+    mockInvalidateSession.mockClear()
+})
 
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -364,6 +379,25 @@ test('shows an error when loading catches fails', async () => {
     expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
 })
 
+test('invalidates the session when loading catches returns HTTP 401', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401
+    }))
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    await waitFor(() => {
+        expect(mockInvalidateSession).toHaveBeenCalledTimes(1)
+    })
+})
+
 test('shows loading state while catches are being fetched', async () => {
     vi.stubGlobal('fetch', vi.fn(() => 
         new Promise<Response>(() => {})
@@ -465,6 +499,59 @@ test('ignores stale GET responses', async () => {
     expect(screen.getByText('Dorada')).toBeInTheDocument()
 
     expect(screen.queryByText('No catches recorded yet')).not.toBeInTheDocument()
+})
+
+test('ignores HTTP 401 from a stale GET request', async () => {
+    let resolveA!: (response: Response) => void
+    let resolveB!: (response: Response) => void
+
+    const fetchMock = vi.fn()
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveA = resolve
+            })
+        })
+        .mockImplementationOnce(() => {
+            return new Promise<Response>(resolve => {
+                resolveB = resolve
+            })
+        })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+        <MemoryRouter>
+            <CatchProvider>
+                <RetryHarness />
+                <CatchLogPage />
+            </CatchProvider>
+        </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Force retry' }))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+        resolveB({
+            ok: true,
+            json: async () => [
+                { id: 2, fish: 'Dorada', length: 42 }
+            ]
+        } as Response)
+    })
+
+    expect(screen.getByText('Dorada')).toBeInTheDocument()
+
+    await act(async () => {
+        resolveA({
+            ok: false,
+            status: 401
+        } as Response)
+    })
+
+    expect(mockInvalidateSession).not.toHaveBeenCalled()
+    expect(screen.getByText('Dorada')).toBeInTheDocument()
 })
 
 test('prevents stale GET from overwriting a successfully created catch', async () => {
@@ -831,7 +918,7 @@ test('disables form submission while PATCH is pending', async () => {
 
     expect(screen.getByRole('button', { name: 'Add Catch' })).toBeInTheDocument()
 
-    expect(expect(doradaItem).toHaveTextContent(/45\s*cm/))
+    expect(doradaItem).toHaveTextContent(/45\s*cm/)
     expect(doradaItem).not.toHaveTextContent(/42\s*cm/)
 })
 

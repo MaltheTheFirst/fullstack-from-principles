@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { CatchContext } from "./CatchContext"
+import { checkResponse } from "../api/checkResponse"
+import { HttpError } from "../api/HttpError"
+import { useAuth } from "../hooks/useAuth"
 import type { ReactNode } from 'react'
 import type { Catch } from '../types/Catch'
 
@@ -13,6 +16,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
     const [loadError, setLoadError] = useState<string | null>(null)
     const [hasLoadedCatches, setHasLoadedCatches] = useState(false)
     const activeControllerRef = useRef<AbortController | null>(null)
+    const { invalidateSession } = useAuth()
 
     const loadCatches = useCallback(() => {
         activeControllerRef.current?.abort()
@@ -25,10 +29,7 @@ export function CatchProvider({ children }: CatchProviderProps) {
             credentials: 'include'
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to load catches')
-            }
-
+            checkResponse(response, 'Failed to load catches')
             return response.json()
         })
         .then(data => {
@@ -46,15 +47,24 @@ export function CatchProvider({ children }: CatchProviderProps) {
                 return
             }
             
+            if (error instanceof HttpError) {
+                if (error.status === 401) {
+                    setLoadError('Your session has expired. Please log in again')
+                    invalidateSession()
+                } else {
+                    setLoadError('Failed to load catches. Please try again')
+                }
+            } else {
+                setLoadError('Unable to complete the request. Please try again.')
+            }
             console.error(error)
-            setLoadError('Failed to load catches')
         })
         .finally(() => {
             if (activeControllerRef.current === controller && !controller.signal.aborted) {
                 setIsLoadingCatches(false)
             }
         })
-    }, [])
+    }, [invalidateSession])
 
     const retryLoadCatches = useCallback(() => {
         setIsLoadingCatches(true)

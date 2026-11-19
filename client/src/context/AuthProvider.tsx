@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import type { CurrentUser } from "../api/auth"
 import { getCurrentUser, login as apiLogin, logout as apiLogout } from "../api/auth"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { AuthContext } from "./AuthContext"
 import { AuthScreen } from "../components/AuthScreen"
 
@@ -52,6 +52,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(null)
     }
 
+    const invalidateSession = useCallback(() => {
+        setUser(null)
+    }, [])
 
     if (isLoading) {
         return <p>Checking session...</p>
@@ -62,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return (
-        <AuthContext value={ {user, isLoading, error, login, logout }}>
+        <AuthContext value={ {user, isLoading, error, login, logout, invalidateSession }}>
             {user === null ? <AuthScreen/> : children}
         </AuthContext>
     )
