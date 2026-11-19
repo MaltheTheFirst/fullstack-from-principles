@@ -32,6 +32,12 @@ Moving persistence from `localStorage` into PostgreSQL introduced problems that 
 
 The application was developed incrementally to encounter and solve these problems rather than introducing a large collection of abstractions at the beginning.
 
+## Screenshots
+
+| Light mode | Dark mode |
+|---|---|
+| ![Catch Log light mode](docs/screenshots/catch-log-light.png) | ![Catch Log dark mode](docs/screenshots/catch-log-dark.png) |
+
 ## Technology Stack
 
 | Layer | Technology |
@@ -79,10 +85,27 @@ Authenticated users can:
 - Search catches by species
 - Sort catches by length
 - View individual catch details
-- View catch statistics
+- View catch count and longest-catch statistics
 - Change displayed measurement units
 
 Catch records are persisted in PostgreSQL and associated with their owning user.
+
+### Species Reference
+
+The application includes a customizable species reference page displaying common and scientific names.
+
+Species data is stored in client/public/species.json, initially containing three example species. The reference list can be customized by adding, editing, or removing entries in this file using the existing JSON structure.
+
+```json
+{
+  "name": "Horse Mackerel",
+  "scientificName": "Trachurus trachurus"
+}
+```
+
+The reference page displays all species defined in the file, independently of the authenticated user's logged catches. It does not currently filter species by catch history or calculate species-specific catch statistics.
+
+The page loads its reference data asynchronously and handles loading and error states.
 
 ### Reliability
 
