@@ -1,4 +1,5 @@
 import styles from './CatchForm.module.css'
+import buttonStyles from '../styles/buttons.module.css'
 
 type CatchFormProps = {
     fish: string
@@ -62,32 +63,31 @@ function CatchForm({
                 aria-describedby={errors.length ? 'length-error' : undefined}
             />
             <div className={styles.actions}>
-                <button type="submit" disabled={isCreating || isUpdating}>
+                <button type="submit" disabled={isCreating || isUpdating} className={`${buttonStyles.button} ${buttonStyles.primary}`}>
                     { editingId !== null 
                         ? (isUpdating ? "Saving..." : "Save Edit")
                         : (isCreating ? "Adding..." : "Add Catch")
                     }
                 </button>
-                {createError && (
-                    <p role="alert">Error: {createError}{updateError}</p>
-                )}
-                {
-                    editingId !== null && 
-                    <button type="button" disabled={isUpdating} onClick={onCancelEdit}>Cancel</button>
-                }
-
-                {errors.fish && (
-                    <p id="fish-error" role="alert">
-                        {errors.fish}
-                    </p>
-                )}
-
-                {errors.length && (
-                    <p id="length-error" role="alert">
-                        {errors.length}
-                    </p>
-                )}
             </div>
+            {createError && <p role="alert">Error: {createError}</p>}
+            {updateError && <p role="alert">Error: {updateError}</p>}
+            {
+                editingId !== null &&
+                <button type="button" disabled={isUpdating} onClick={onCancelEdit} className={buttonStyles.secondary}>Cancel</button>
+            }
+
+            {errors.fish && (
+                <p id="fish-error" role="alert">
+                    {errors.fish}
+                </p>
+            )}
+
+            {errors.length && (
+                <p id="length-error" role="alert">
+                    {errors.length}
+                </p>
+            )}
         </form>
     )
 }

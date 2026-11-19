@@ -2,14 +2,20 @@
     display: flex;
     align-items: center;
     gap: var(--space-sm);
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
 }
 
 .details {
     margin: 0;
     flex: 1;
+    text-align: left;
+    color: var(--text-h);
+    font-weight: 600;
 }
 
 .actions {
     display: flex;
-    margin: var(--space-sm);
+    gap: var(--space-sm);
 }

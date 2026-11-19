@@ -1,6 +1,7 @@
-import CatchItem from "./CatchItem"
+import CatchItem from './CatchItem'
 import type { Catch } from '../types/Catch'
 import { memo } from 'react'
+import styles from './CatchList.module.css'
 
 type CatchListProps = {
     catches: Catch[]
@@ -11,7 +12,7 @@ type CatchListProps = {
 
 function CatchList({ catches, onDelete, onEdit, deletingIds }: CatchListProps) {
     return(
-        <ul>
+        <ul className={styles.list}>
             {
                 catches.map((catchItem) => {
                     return (

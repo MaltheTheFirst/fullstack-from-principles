@@ -63,6 +63,7 @@ test('opens the correct catch detail from the log', async () => {
         within(navigation).getByRole('link', { name: 'Statistics' })
     ).toBeInTheDocument()
 
+    screen.debug()
     expect(
         screen.getByRole('main')
     ).toBeInTheDocument()

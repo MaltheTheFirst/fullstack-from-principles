@@ -1,37 +1,32 @@
 import { useSpecies } from '../hooks/useSpecies'
+import styles from './StatsPage.module.css'
 
 function StatsPage() {
     const { species, loading, error } = useSpecies()
 
-    if (loading) {
-        return (
-            <main id="center">
-                <p>Loading Species...</p>
-            </main>
-        )
-    }
-
-    if (error) {
-        return (
-            <main id="center">
-                <p>{error}</p>
-            </main>
-        )
-    }
-
     return (
-        <main id="center">
+        <div className={styles.page}>
             <h1>Catch Statistics</h1>
-            <p>Stats page</p>
 
-            <ul>
-                {species.map((item) => (
-                    <li key={item.scientificName}>
-                        {item.name} - {item.scientificName}
-                    </li>
-                ))}
-            </ul>
-        </main>
+            {loading ? (
+                <p>Loading Species...</p>
+            ) : error ? (
+                <p>{error}</p>
+            ) : (
+                <ul className={styles.speciesList}>
+                    {species.map((item) => (
+                        <li key={item.scientificName} className={styles.speciesItem}>
+                            <span className={styles.commonName}>
+                                {item.name}
+                            </span>
+                            <span className={styles.scientificName}>
+                                {item.scientificName}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
     )
 }
 
