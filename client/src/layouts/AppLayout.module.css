@@ -1,0 +1,51 @@
+.header {
+    border-bottom: 1px solid var(--border);
+}
+
+.nav {
+    padding: 1rem 1.5rem;
+}
+
+.links {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.logoutItem {
+    margin-left: auto;
+}
+
+.logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    color: var(--text-h);
+}
+
+.logout:hover {
+    background: var(--border);
+}
+
+.logout:focus-visible {
+    background: var(--border);
+}
+
+.logout:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.main {
+    padding: 2rem 1.5rem;
+}
+
+.active {
+    font-weight: 700;
+    color: var(--text-h);
+}
