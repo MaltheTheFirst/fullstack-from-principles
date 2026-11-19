@@ -1,5 +1,5 @@
-import { createContext } from "react"
 import type { CurrentUser } from "../api/auth"
+import { createContext } from "react"
 
 type AuthContextValue = {
     user: CurrentUser | null

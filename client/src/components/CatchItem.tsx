@@ -1,5 +1,5 @@
-import { Link } from 'react-router'
 import type { Catch } from '../types/Catch'
+import { Link } from 'react-router'
 import { useContext } from 'react'
 import { UnitContext } from '../context/UnitContext'
 import styles from './CatchItem.module.css'

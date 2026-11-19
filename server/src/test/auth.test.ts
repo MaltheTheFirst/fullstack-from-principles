@@ -1,8 +1,8 @@
 import { describe, it, expect, afterAll } from 'vitest'
+import { requireAuth } from '../auth/requireAuth.js'
+import { createHash } from 'node:crypto'
 import { app } from '../app.js'
 import { pool } from '../db.js'
-import { createHash } from 'node:crypto'
-import { requireAuth } from '../auth/requireAuth.js'
 import argon2 from 'argon2'
 
 app.get('/test/protected', {

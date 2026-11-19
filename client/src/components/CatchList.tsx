@@ -1,6 +1,6 @@
-import CatchItem from './CatchItem'
 import type { Catch } from '../types/Catch'
 import { memo } from 'react'
+import CatchItem from './CatchItem'
 import styles from './CatchList.module.css'
 
 type CatchListProps = {

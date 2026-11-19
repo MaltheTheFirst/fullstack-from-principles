@@ -1,10 +1,10 @@
+import type { ReactNode } from 'react'
+import type { Catch } from '../types/Catch'
 import { useState, useEffect, useCallback, useRef } from "react"
 import { CatchContext } from "./CatchContext"
 import { checkResponse } from "../api/checkResponse"
 import { HttpError } from "../api/HttpError"
 import { useAuth } from "../hooks/useAuth"
-import type { ReactNode } from 'react'
-import type { Catch } from '../types/Catch'
 
 type CatchProviderProps = {
     children: ReactNode

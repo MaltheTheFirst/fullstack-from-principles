@@ -1,9 +1,10 @@
-import cors from '@fastify/cors'
-import cookie from '@fastify/cookie'
-import Fastify from 'fastify'
 import { pool } from './db.js'
 import { catchRoutes } from './routes/catches.js'
 import { authRoutes } from './routes/auth.js'
+import cors from '@fastify/cors'
+import cookie from '@fastify/cookie'
+import Fastify from 'fastify'
+
 
 export const app = Fastify({
     logger: true,

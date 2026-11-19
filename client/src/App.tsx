@@ -1,8 +1,8 @@
 import { Route, Routes } from 'react-router'
-import CatchLogPage from './pages/CatchLogPage'
 import StatsPage from './pages/StatsPage'
-import CatchDetailPage from './pages/CatchDetailPage'
 import AppLayout from './layouts/AppLayout'
+import CatchLogPage from './pages/CatchLogPage'
+import CatchDetailPage from './pages/CatchDetailPage'
 
 function App() {
   return (

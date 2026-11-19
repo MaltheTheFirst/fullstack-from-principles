@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
-import App from '../App'
 import { CatchProvider } from '../context/CatchProvider'
 import { AuthContext } from '../context/AuthContext'
+import { MemoryRouter } from 'react-router'
+import App from '../App'
 
 const testAuth = {
     user: { id: 1, username: 'alice' },

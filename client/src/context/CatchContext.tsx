@@ -1,5 +1,5 @@
-import { createContext } from 'react'
 import type { Catch } from '../types/Catch'
+import { createContext } from 'react'
 
 type CatchContextValue = {
     catches: Catch[]
