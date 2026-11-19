@@ -1,807 +1,694 @@
-# React From Principles
+# Fullstack From Principles
 
-A frontend engineering learning project built with React and TypeScript to understand the abstractions behind modern component-driven user interfaces.
+A full-stack TypeScript learning project built to understand how frontend applications, HTTP APIs, authentication, authorization, and relational databases work together.
 
-Rather than starting with a large application framework or relying heavily on prebuilt state, form, data-fetching, or UI libraries, this project builds a small interactive application primarily with React's own primitives.
+The application is a multi-user shore-fishing catch log. Users can create accounts, sign in, and manage their own catches, with data persisted in PostgreSQL rather than browser storage.
 
-The goal was not simply to build a catch logger. The goal was to understand how React manages rendering, state, events, shared data, effects, routing, validation, asynchronous work, and component architecture by implementing those concerns directly.
+The purpose was not to build a feature-rich fishing application. It was to implement and understand the responsibilities that turn an interactive frontend into a persistent, authenticated full-stack system.
 
 ## Why I Built This
 
-After completing **HTTP From Scratch**, I had a much stronger understanding of what happens on the server side of a web application:
+This project is the third stage of my *From Principles* software engineering learning sequence.
 
-```text
-request
-↓
-routing
-↓
-parsing
-↓
-validation
-↓
-application logic
-↓
-persistence
-↓
-response
-```
+The preceding projects explored two sides of web development:
 
-The next step was to understand the frontend side with the same level of deliberate practice.
+- **HTTP From Scratch** — HTTP requests, routing, validation, sessions, SQL, transactions, and server-side persistence using Node.js and TypeScript.
+- **React From Principles** — component architecture, state, effects, forms, validation, routing, asynchronous operations, accessibility, and frontend testing.
 
-I had already worked with larger React and full-stack TypeScript applications, often with significant AI assistance, but wanted to become comfortable reading and writing the underlying code myself.
+Fullstack From Principles connects those two mental models.
 
-This project therefore focuses on the mechanics normally hidden behind higher-level frontend abstractions:
+The central question is:
 
-```text
-user interaction
-↓
-event handler
-↓
-state transition
-↓
-React render
-↓
-derived UI
-↓
-browser DOM
-```
+**What changes when the browser is no longer the authority over application data?**
 
-The application gradually evolved from a single component into a small structured React application with routing, shared state, custom hooks, validation, asynchronous data, testing, accessibility, and error handling.
+Moving persistence from `localStorage` into PostgreSQL introduced problems that the frontend-only application did not need to solve:
 
-## Stack
+- Network requests can fail or complete out of order.
+- The server must validate requests independently of the client.
+- Users need persistent identities and authenticated sessions.
+- Data must be isolated between users.
+- UI state must reflect the outcome of server operations.
+- Tests need to exercise database-backed behavior safely.
 
-- React
-- TypeScript
-- Vite
-- React Router
-- Zod
-- Vitest
-- React Testing Library
-- CSS Modules
-- Native browser `fetch`
-- `localStorage`
+The application was developed incrementally to encounter and solve these problems rather than introducing a large collection of abstractions at the beginning.
 
-Deliberately not introduced as primary abstractions:
+## Technology Stack
 
-- Redux
-- Zustand
-- TanStack Query
-- React Hook Form
-- Formik
-- Next.js
-- A component library
-- A backend API
-- A database
+| Layer | Technology |
+| --- | --- |
+| Language | TypeScript |
+| Frontend | React, Vite |
+| Routing | React Router |
+| Frontend validation | Zod |
+| Backend | Node.js, Fastify |
+| Database | PostgreSQL |
+| Database access | `pg` with parameterized SQL |
+| Password hashing | Argon2id |
+| Sessions | Random session tokens, SHA-256 token hashes, HTTP-only cookies |
+| Testing | Vitest, React Testing Library, Fastify injection |
+| Styling | CSS Modules |
+| Repository | npm workspaces |
 
-Those concerns are intentionally left for later projects so the React primitives remain visible.
+The project intentionally uses native `fetch`, React primitives, and explicit SQL rather than introducing an ORM, dedicated server-state library, or full-stack application framework.
 
-## Application
+This keeps the boundaries between systems visible.
 
-The application is a small shore-fishing catch log.
+## Application Features
 
-Users can:
+### Authentication
 
-- View catches
-- Add catches
-- Edit catches
+- User registration with server-side validation
+- Login using username and password
+- Password hashing with Argon2id
+- Database-backed sessions
+- HTTP-only session cookies
+- Session restoration after page refresh
+- Logout with server-side session invalidation
+- Authentication checks before accessing catch data
+
+Registration creates an account; login establishes the authenticated session.
+
+### Catch Management
+
+Authenticated users can:
+
+- View their own catches
+- Create catches
+- Edit existing catches
 - Delete catches
 - Search catches by species
 - Sort catches by length
-- Switch displayed measurement units
-- Open individual catch detail routes
-- View statistics
-- Load species information asynchronously
-- Persist catches between page reloads
+- View individual catch details
+- View catch statistics
+- Change displayed measurement units
 
-The catch log became a useful domain because even a small collection of records naturally introduces state, forms, validation, lists, derived data, routing, shared state, and persistence.
+Catch records are persisted in PostgreSQL and associated with their owning user.
 
-## React State and Rendering
+### Reliability
 
-The project began with local component state using `useState`.
+The frontend also handles:
 
-This introduced the core React flow:
+- Initial loading states
+- Failed network requests
+- Retry after failed catch loading
+- Expired or invalid sessions
+- HTTP error responses
+- Duplicate mutation prevention
+- Stale or aborted catch-loading requests
+- Updating local UI state after successful server mutations
 
-```text
-state
-↓
-render
-↓
-user interaction
-↓
-state update
-↓
-render again
-```
+These behaviors are part of the project's engineering scope rather than optional presentation details.
 
-Controlled form inputs make React state the source of truth:
+## System Architecture
+
+The application consists of two npm workspaces:
 
 ```text
-input value
-↓
-React state
-↓
-onChange
-↓
-state update
-↓
-new rendered value
+fullstack-from-principles/
+├── client/
+├── server/
+├── package.json
+└── README.md
 ```
 
-Catch creation, editing, and deletion all use immutable state transitions rather than mutating existing arrays.
-
-## Lists and Derived State
-
-Catches are rendered from arrays using `.map()` and stable IDs as React keys.
-
-Derived values include:
-
-- Total catch count
-- Longest catch
-- Search results
-- Sorted catch lists
-- Display values converted between centimetres and inches
-
-These values are calculated from existing state rather than stored independently where possible.
-
-For example:
+The React frontend runs separately from the Fastify API during local development.
 
 ```text
-catches
-↓
-search
-↓
-filtered catches
-↓
-sort order
-↓
-sorted catches
-↓
-render
+Browser
+  |
+  | User interaction
+  v
+React components
+  |
+  | Feature hooks / Context
+  v
+fetch() with credentials
+  |
+  | HTTP request
+  v
+Fastify API
+  |
+  | Request validation
+  | Authentication
+  | Resource authorization
+  v
+PostgreSQL
+  |
+  | Query result
+  v
+Fastify response
+  |
+  | HTTP status + JSON
+  v
+React state update
+  |
+  v
+Rendered UI
 ```
 
-This helped reinforce the distinction between source state and values that can be derived from it.
+The responsibilities are deliberately separated.
 
-## Forms and Validation
+**The browser** owns presentation, form state, user interactions, and temporary client-side representations of server data.
 
-The catch form began with manual validation and gradually evolved into schema-based validation using Zod.
+**The API** owns request validation, authentication enforcement, resource access rules, and database operations.
 
-Raw HTML form state remains string-based:
+**PostgreSQL** owns persistent records, relationships, and database constraints.
+
+This distinction is fundamental: a user interface can hide an action, but only the server can enforce whether that action is permitted.
+
+## Authentication and Sessions
+
+Authentication uses server-managed sessions rather than storing credentials or authentication tokens in React state or browser `localStorage`.
+
+### Registration
+
+A registration request contains a username and password.
+
+The server:
+
+1. Validates the request body.
+2. Hashes the password using Argon2id.
+3. Inserts the new user into PostgreSQL.
+4. Returns the created user's public identity.
+
+The database enforces unique usernames.
+
+### Login
+
+A successful login follows this flow:
 
 ```text
-fish: string
-length: string
+Username + password
+        |
+        v
+Find user in PostgreSQL
+        |
+        v
+Verify Argon2id password hash
+        |
+        v
+Generate random session token
+        |
+        v
+Hash token using SHA-256
+        |
+        v
+Store token hash and expiry in PostgreSQL
+        |
+        v
+Send raw token in HTTP-only cookie
 ```
 
-The validation boundary then performs:
+The raw session token is sent to the browser, while its hash is stored in the database.
+
+Sessions have a seven-day expiry.
+
+The cookie uses `HttpOnly` and `SameSite=Lax`. Its current `Secure` setting is disabled for local HTTP development and would need to change for HTTPS deployment.
+
+### Authenticated Requests
+
+Protected endpoints use a Fastify authentication pre-handler.
+
+The server:
+
+1. Reads the session cookie.
+2. Hashes the supplied token.
+3. Looks up an unexpired session.
+4. Resolves the associated user.
+5. Attaches the authenticated user to the request.
+
+Requests without a valid session receive HTTP `401 Unauthorized`.
+
+### Session Restoration and Logout
+
+When the frontend starts, it requests `/auth/me` to determine whether an existing browser session is valid.
+
+This allows authentication state to be restored after refreshing the page without persisting the user identity as an authentication authority in browser storage.
+
+Logout removes the corresponding session from PostgreSQL and clears the cookie.
+
+## Authorization and Data Ownership
+
+Authentication answers:
+
+**Who is making this request?**
+
+Authorization answers:
+
+**Is that user permitted to access this resource?**
+
+These are separate responsibilities.
+
+Each catch has a `user_id` referencing its owner.
+
+Database queries enforce ownership directly:
+
+```sql
+SELECT id, fish, length
+FROM catches
+WHERE user_id = $1;
+```
+
+Updates and deletions include both the catch ID and authenticated user ID in their `WHERE` clauses.
+
+Consequently, knowing another user's catch ID does not grant permission to modify or delete it.
+
+An attempt to update or delete a catch that is not owned by the authenticated user returns `404 Not Found`, without exposing whether another user's record exists.
+
+Ownership is enforced by the API and database queries, not by trusting a user ID supplied by the frontend.
+
+## Database and Persistence
+
+PostgreSQL is the persistent source of truth for:
+
+- Users
+- Sessions
+- Catches
+- Catch ownership
+
+The database schema evolved through three SQL migrations:
+
+| Migration | Purpose |
+| --- | --- |
+| `001_create_catches.sql` | Initial catch table |
+| `002_create_auth_tables.sql` | Users and sessions |
+| `003_add_catch_ownership.sql` | Associate catches with users |
+
+The third migration also contains a backfill for existing catches using user ID `1`. This reflects the project's incremental migration from a single-user application.
+
+It is not a general-purpose migration strategy for arbitrary existing datasets.
+
+The application uses the `pg` connection pool and parameterized SQL queries. There is no ORM or automated migration framework.
+
+Database constraints provide an additional validation boundary, including positive catch lengths, unique usernames, foreign keys, and non-null ownership.
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Register a user |
+| `POST` | `/auth/login` | Create a session |
+| `POST` | `/auth/logout` | Invalidate a session |
+| `GET` | `/auth/me` | Resolve the current user |
+
+### Catches
+
+All catch endpoints require authentication.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/catches` | List the current user's catches |
+| `POST` | `/catches` | Create a catch |
+| `PATCH` | `/catches/:id` | Update an owned catch |
+| `DELETE` | `/catches/:id` | Delete an owned catch |
+
+The API also exposes `GET /health`.
+
+Request bodies and route parameters are validated on the server using Fastify schemas.
+
+The frontend separately validates catch form inputs using Zod for immediate user feedback.
+
+Client-side validation improves usability; server-side validation establishes the API's input boundary.
+
+## Frontend Architecture
+
+The frontend builds on the completed React From Principles application.
+
+Rather than rebuilding its components, the project changes how application data is obtained, updated, and trusted.
+
+### Authentication State
+
+`AuthProvider` manages the current user's frontend authentication state.
+
+It checks the existing session on startup and exposes login, logout, and session invalidation operations.
+
+Unauthenticated users see the authentication screen instead of the catch-management interface.
+
+### Catch State
+
+`CatchProvider` owns the client-side catch collection and its loading and error states.
+
+It loads catch records from the API rather than initializing them from `localStorage`.
+
+The provider also supports retrying failed loads and cancelling active requests.
+
+### Feature Behavior
+
+`useCatchLog` coordinates catch-management behavior:
+
+- Form state and validation
+- Creating, editing, and deleting catches
+- Search and sorting
+- Derived statistics
+- Loading and mutation feedback
+- Focus management
+
+This keeps feature behavior separate from the components responsible for rendering it.
+
+### Server State Versus UI State
+
+The frontend maintains a local representation of server data so React can render it.
+
+However, that representation is not the persistent source of truth.
+
+For example, a successful catch creation follows this flow:
 
 ```text
-raw form input
-↓
-Zod schema
-↓
-validation
-↓
-type coercion
-↓
-trusted form data
+Form submission
+       |
+       v
+Zod validation
+       |
+       v
+POST /catches
+       |
+       v
+Fastify validation + authentication
+       |
+       v
+PostgreSQL INSERT
+       |
+       v
+201 Created + saved catch
+       |
+       v
+Update React catch state
+       |
+       v
+Render new catch
 ```
 
-The length field is coerced from a string into a number only after successful validation.
+A failed request must not be presented as a successful persistent operation.
 
-Field-specific errors are represented explicitly and connected to their corresponding inputs using accessible attributes.
+This is one of the main differences between local React state management and full-stack application state management.
 
-Invalid submission also moves focus to the first invalid field.
-
-## `useReducer`
-
-As form behavior became more complex, multiple independent state updates were replaced with `useReducer`.
-
-The reducer receives named actions such as:
+## Asynchronous Operations and Failure Handling
 
-```text
-fishChanged
-lengthChanged
-startEditing
-cancelEditing
-validationFailed
-reset
-```
+HTTP introduces uncertainty that does not exist when directly updating an in-memory array.
 
-The flow becomes:
+Requests can fail, be delayed, or complete after a newer request.
 
-```text
-UI event
-↓
-dispatch action
-↓
-reducer
-↓
-next form state
-↓
-render
-```
+The application handles several of these cases explicitly.
 
-This made state transitions explicit and demonstrated when a reducer can be easier to reason about than several unrelated state setters.
+### Loading and Retry
 
-## Custom Hooks
+Catch loading distinguishes between:
 
-Several custom hooks were introduced as responsibilities became clearer.
+- Data still loading
+- Data successfully loaded
+- A genuinely empty catch collection
+- A failed request
 
-### `useLocalStorage`
+This prevents a backend outage from being mistaken for an empty database.
 
-A generic persistence hook encapsulates synchronization between React state and browser `localStorage`.
+A failed load can be retried after connectivity is restored.
 
-Conceptually:
+### Request Cancellation
 
-```text
-initial render
-↓
-read stored value
-↓
-React state
-↓
-state changes
-↓
-effect
-↓
-localStorage
-```
+Catch-loading requests use `AbortController`.
 
-### `useSpecies`
+Starting a new load aborts the previous active request. The provider also checks whether a response belongs to the current request before applying its result.
 
-Species loading was extracted into its own asynchronous hook.
+This prevents stale catch-loading responses from overwriting newer state.
 
-It owns:
+### Mutation Guards
 
-- Loading state
-- Data state
-- Error state
-- Fetching
-- `response.ok` checking
-- `AbortController`
-- Cleanup when the consuming component unmounts
+Creating, updating, and deleting catches use guards to prevent overlapping duplicate operations.
 
-### `useCatchLog`
+These guards address repeated frontend interactions; they are not a substitute for server-side idempotency guarantees.
 
-The main catch-log feature behavior was eventually extracted from the page.
+### HTTP Errors
 
-It owns:
+The frontend checks response status codes rather than treating every completed `fetch` as success.
 
-- Catch collection access
-- Form reducer state
-- Validation
-- Form refs
-- Add behavior
-- Edit behavior
-- Delete behavior
-- Search state
-- Sorting state
-- Filtering
-- Derived catch statistics
-- Focus behavior
+A non-success HTTP response is distinct from a network-level failure.
 
-This allowed the page component to become primarily a composition and rendering layer.
-
-The boundary is approximately:
-
-```text
-CatchLogPage
-↓
-semantic feature operations
-↓
-useCatchLog
-↓
-React primitives / context / validation
-```
-
-The page no longer needs to know the reducer's internal action names or mutation implementation.
-
-## Context and Shared State
-
-Catch data initially lived directly inside the catch-log page.
-
-Routing created a requirement for multiple pages to access the same collection, so the state was lifted into React Context.
-
-The context architecture is separated into:
-
-```text
-CatchContext
-↓
-shared value definition
-
-CatchProvider
-↓
-owns and provides catch state
-
-useCatches
-↓
-consumer API
-```
-
-This enables both the catch list and individual detail routes to access the same application state without prop drilling.
-
-A separate unit context handles the user's display-unit preference.
-
-## Routing
-
-React Router introduces multiple application pages.
-
-The application includes:
-
-- Catch-log route
-- Statistics route
-- Dynamic catch-detail route
-- Shared layout route
-- Navigation
-- Not-found handling for unknown catch IDs
-
-Dynamic routes follow the flow:
-
-```text
-/catches/:id
-↓
-useParams()
-↓
-string route parameter
-↓
-number conversion
-↓
-find matching catch
-↓
-render catch or not-found state
-```
-
-A shared `AppLayout` uses an `Outlet` so navigation and common page structure do not need to be repeated.
-
-## Asynchronous Data
-
-The statistics page loads species data using the browser `fetch` API.
-
-The hook explicitly models:
-
-```text
-loading
-↓
-success
-```
-
-or:
-
-```text
-loading
-↓
-failure
-↓
-error UI
-```
-
-Request cleanup uses `AbortController`:
-
-```text
-effect starts
-↓
-fetch begins
-↓
-component unmounts
-↓
-cleanup runs
-↓
-request aborted
-```
-
-This provided an introduction to asynchronous React behavior before introducing a dedicated server-state library.
-
-## Memoization and Stable References
-
-The project also explores:
-
-- `useMemo`
-- `useCallback`
-- `React.memo`
-
-These were introduced only after there was an actual relationship between derived values, callback identity, and memoized child components.
-
-For example:
-
-```text
-catches/search/sort change
-↓
-useMemo recalculates visible catches
-```
-
-while stable callbacks prevent memoized children from receiving a new function identity unnecessarily.
-
-The goal was to understand what memoization does rather than apply it automatically.
-
-## Refs and Focus Management
-
-`useRef` is used to retain direct references to form inputs without causing renders.
-
-This supports flows such as:
-
-```text
-start editing
-↓
-populate form
-↓
-focus fish input
-```
-
-and:
-
-```text
-validation fails
-↓
-find first invalid field
-↓
-focus corresponding input
-```
-
-This demonstrates the distinction between React state and mutable values that do not affect rendering.
-
-## Accessibility
-
-Accessibility was treated as part of the application structure rather than a final visual pass.
-
-The application includes:
-
-- Semantic page landmarks
-- Semantic navigation
-- Lists using `ul` and `li`
-- Explicit form labels
-- `aria-invalid`
-- `aria-describedby`
-- Validation messages using `role="alert"`
-- Focus movement after validation failures
-- Accessible links and buttons
-- Tests using semantic queries such as `getByRole()` and `getByLabelText()`
-
-Using accessible Testing Library queries also helped expose weak markup during development.
-
-## Styling
-
-Component-specific styles use CSS Modules.
-
-For example:
-
-```text
-CatchForm.module.css
-CatchItem.module.css
-CatchControls.module.css
-```
-
-Global styling remains in the application stylesheet.
-
-Shared CSS design tokens define common values such as:
-
-- Control height
-- Border radius
-- Spacing
-- Content width
-
-This keeps styling scoped while still allowing application-wide design decisions to remain centralized.
-
-## Error Boundaries
-
-The application includes a React Error Boundary around the routed application.
-
-Expected application states such as validation errors, failed fetches, and missing catches are handled normally.
-
-An Error Boundary handles a different category:
-
-```text
-unexpected descendant render error
-↓
-Error Boundary
-↓
-fallback application UI
-```
-
-The boundary also receives the captured error and component information through `componentDidCatch()`.
-
-A dedicated test deliberately renders a component that throws and verifies that the fallback UI replaces the failed subtree.
+Unauthorized responses can invalidate the frontend's authenticated state, while other failures are surfaced to the user.
 
 ## Testing
 
-The project uses Vitest and React Testing Library.
+The repository contains frontend and backend tests.
 
-Coverage includes several levels.
+### Frontend
 
-### Component Tests
+Vitest and React Testing Library exercise rendered application behavior, including forms, routing, validation, and catch-management interactions.
 
-Individual components are tested for:
+The full-stack work also adds regression coverage for authentication invalidation and stale-request behavior.
 
-- Rendering
-- Props
-- Callback execution
-- Controlled input behavior
-- Submission
-- Edit mode
-- Validation messages
-- Accessibility state
+### Backend
 
-### Integration Tests
+Fastify's injection interface allows tests to exercise HTTP routes without starting a separately listening network server.
 
-Larger application flows cover:
+Backend tests cover authentication and catch authorization, including user ownership boundaries.
 
-- Adding a catch
-- Editing a catch
-- Deleting a catch
-- Validation behavior
-- Validation error clearing
+### Database Safety
 
-These tests interact with the application through the rendered UI rather than calling internal implementation functions directly.
+Backend tests use a separate database configuration from `server/.env.test`.
 
-### Routing Tests
-
-Routing tests use an in-memory router and cover:
-
-- Navigation to catch details
-- Valid dynamic routes
-- Invalid catch IDs
-- Shared navigation and page landmarks
-
-### Schema Tests
-
-The Zod schema is tested independently for:
-
-- Successful input
-- Type coercion
-- Invalid fish names
-- Invalid lengths
-
-### Error Boundary Test
-
-A deliberately broken child component verifies that unexpected rendering failures produce fallback UI.
-
-Before release, the project is validated through:
-
-```bash
-npm run test -- --run
-npm run lint
-npm run build
-```
-
-## Project Structure
-
-The application is organized by responsibility:
+Before the test suite runs, its global setup checks for a specific marker in the database:
 
 ```text
-src/
-├── components/
-│   ├── CatchControls.tsx
-│   ├── CatchForm.tsx
-│   ├── CatchItem.tsx
-│   ├── CatchList.tsx
-│   └── ErrorBoundary.tsx
-│
-├── context/
-│   ├── CatchContext.ts
-│   ├── CatchProvider.tsx
-│   ├── UnitContext.ts
-│   └── useCatches.ts
-│
-├── hooks/
-│   ├── useCatchLog.ts
-│   ├── useLocalStorage.ts
-│   └── useSpecies.ts
-│
-├── layouts/
-│   └── AppLayout.tsx
-│
-├── pages/
-│   ├── CatchDetailPage.tsx
-│   ├── CatchLogPage.tsx
-│   └── StatsPage.tsx
-│
-├── schemas/
-│   └── catchFormSchema.ts
-│
-├── types/
-│   └── Catch.ts
-│
-├── integration/
-│   ├── CatchLogPage.test.tsx
-│   └── Routing.test.tsx
-│
-├── test/
-│   └── setup.ts
-│
-├── App.tsx
-└── main.tsx
+fullstack-from-principles-test
 ```
 
-Test files for individual components and schemas are colocated with the code they exercise.
+The marker is created by `server/test/setup-test-database.sql`.
+
+The test suite refuses to proceed if the expected database identity is missing or incorrect.
+
+This is a deliberate safeguard against running database-mutating tests against the wrong database.
 
 ## Running Locally
 
-Install dependencies:
+### Prerequisites
+
+- Node.js with npm
+- PostgreSQL
+- A PostgreSQL user with permission to create and modify the project databases
+
+The project uses npm workspaces, so dependencies can be installed from the repository root.
+
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-Start the Vite development server:
+### 2. Configure PostgreSQL
 
-```bash
-npm run dev
-```
-
-Run the test suite:
-
-```bash
-npm run test -- --run
-```
-
-Run ESLint:
-
-```bash
-npm run lint
-```
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-## What the Project Explores
-
-A useful way to view the project is as an exploration of responsibilities that higher-level frontend libraries can later abstract.
-
-| Implemented here | Common higher-level abstraction |
-| --- | --- |
-| Controlled form state | Form library |
-| Manual validation flow | Form/schema integration |
-| Context provider | Application state library |
-| `useLocalStorage` | Persistence abstraction |
-| `useSpecies` | Server-state library |
-| Manual loading/error state | Query library |
-| Reducer actions | State-management abstraction |
-| `useMemo` / `useCallback` | Performance abstraction |
-| React Router routes | Framework routing |
-| CSS Modules | Styling system |
-| Error Boundary | Application error handling |
-
-The purpose was not to argue against those abstractions.
-
-It was to understand the responsibilities they take over well enough to use them deliberately later.
-
-## Key Takeaways
-
-The largest lesson from the project was that React is primarily a system for describing how UI should follow application state.
-
-```text
-state
-↓
-render
-↓
-interaction
-↓
-state transition
-↓
-render
-```
-
-As the application became larger, another pattern became increasingly important:
-
-```text
-data ownership
-≠
-feature behavior
-≠
-derived data
-≠
-presentation
-```
+Create a development database and a separate test database.
 
 For example:
 
-```text
-CatchProvider
-↓
-owns shared catch data
-
-useCatchLog
-↓
-owns catch-log feature behavior
-
-CatchLogPage
-↓
-composes and renders the feature
+```sql
+CREATE DATABASE fullstack_dev;
+CREATE DATABASE fullstack_test;
 ```
 
-The project also reinforced that abstractions become easier to understand when introduced after encountering the problem they solve.
+These are example database names; the application uses the connection string rather than relying on a particular database name.
 
-`useReducer`, Context, custom hooks, memoization, schema validation, and error boundaries were therefore added incrementally rather than at the beginning.
+### 3. Configure Environment Variables
 
-## Limitations
+Copy:
 
-This is a frontend learning project rather than a production application.
+```text
+server/.env.example
+```
 
-Some intentional limitations include:
+to:
 
-- Catch data is stored in browser `localStorage`
-- There is no backend API
-- There is no database
-- There are no user accounts
-- There is no authentication
-- There is no authorization
-- Data synchronization between devices is not supported
-- Species data is loaded from a static JSON resource
-- Server-state management is handled manually rather than through a query library
-- The application does not attempt to demonstrate every React API or ecosystem library
+```text
+server/.env
+```
 
-These limitations are deliberate because they define the boundary between this project and the next stage of the learning sequence.
+Set the development database connection string:
 
-## Scope
+```dotenv
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/fullstack_dev
+```
 
-**React From Principles** is not intended to be a complete production frontend architecture.
+Replace the placeholders with your local PostgreSQL credentials.
 
-It deliberately builds on mature primitives:
+The server requires `DATABASE_URL`.
 
-- React
-- React Router
-- Vite
-- TypeScript
-- Browser APIs
-- Zod
-- Vitest
-- React Testing Library
+### 4. Apply Database Migrations
 
-The "from principles" approach refers to learning the important React abstractions directly before introducing more powerful framework and ecosystem layers.
+Migrations are applied manually in filename order.
+
+From the repository root:
+
+```bash
+psql -d fullstack_dev -v ON_ERROR_STOP=1 -f server/migrations/001_create_catches.sql
+psql -d fullstack_dev -v ON_ERROR_STOP=1 -f server/migrations/002_create_auth_tables.sql
+psql -d fullstack_dev -v ON_ERROR_STOP=1 -f server/migrations/003_add_catch_ownership.sql
+```
+
+These examples assume your PostgreSQL command-line connection is already configured for the intended local database.
+
+For a fresh empty database, the migrations establish the required tables and ownership relationship.
+
+For an existing database containing catches, migration `003` requires an appropriate user with ID `1` before its backfill can succeed.
+
+### 5. Start the Backend
+
+From the repository root:
+
+```bash
+npm run dev:server
+```
+
+The Fastify API listens on:
+
+```text
+http://127.0.0.1:3001
+```
+
+### 6. Start the Frontend
+
+In another terminal:
+
+```bash
+npm run dev:client
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+The development frontend is configured to communicate with the API on port `3001`.
+
+The current CORS configuration permits the local Vite development origin.
+
+### 7. Configure the Test Database
+
+Create `server/.env.test` with a `DATABASE_URL` pointing to the separate test database.
+
+Apply the three migrations to that database, then apply:
+
+```bash
+psql -d fullstack_test -v ON_ERROR_STOP=1 -f server/test/setup-test-database.sql
+```
+
+**Do not point `.env.test` at your development or production database.**
+
+The test suite performs a database identity check, but the test database should still be isolated and disposable.
+
+### 8. Run Verification
+
+From the repository root:
+
+```bash
+npm run lint
+npm run build
+npm run test:client
+npm run test:server
+```
+
+The server tests require the configured test database.
+
+## Engineering Lessons
+
+### The Server Must Be the Authority
+
+In a frontend-only application, updating state can immediately change the application data.
+
+In a full-stack application, updating React state does not mean the database operation succeeded.
+
+The server's response becomes part of the state transition.
+
+### Authentication and Authorization Are Different
+
+An authenticated user is not automatically authorized to access every record.
+
+Authorization must be enforced for each protected operation using trusted server-side identity.
+
+### HTTP Success and Network Success Are Different
+
+A completed HTTP request may return an error status.
+
+A network failure may prevent any HTTP response from arriving.
+
+Both cases need explicit handling.
+
+### Asynchronous State Requires Ownership
+
+An asynchronous response should only update application state if it is still relevant.
+
+Request cancellation, stale-response checks, and mutation guards make that relationship explicit.
+
+### Database Design Is Part of Application Behavior
+
+Foreign keys, constraints, uniqueness, and ownership relationships are not merely storage details.
+
+They help enforce the assumptions on which application logic depends.
+
+### Tests Need Their Own Safety Boundaries
+
+A test suite that mutates a real database must establish which database it is allowed to use.
+
+The explicit test-database identity check is an example of treating test infrastructure as engineering work rather than an afterthought.
+
+## Limitations and Scope
+
+This is a local full-stack engineering learning project, not a production-ready application.
+
+Current limitations include:
+
+- Local development URLs and ports are hardcoded.
+- The session cookie is configured for local HTTP rather than HTTPS deployment.
+- Database migrations are applied manually.
+- The third migration contains a project-specific ownership backfill.
+- There is no password reset or email verification.
+- There is no rate-limiting implementation for authentication endpoints.
+- There is no dedicated CSRF-token protection mechanism.
+- There is no deployment pipeline or production infrastructure configuration.
+- Client-side server state is managed manually rather than through a query library.
+- The project does not implement a complete production security, observability, or operations model.
+
+These limitations are documented to distinguish the implemented learning objectives from additional work required for a production service.
 
 ## Outcome
 
-The finished application can now be traced across the frontend:
+The completed project connects the two earlier learning projects into one end-to-end application.
+
+**HTTP From Scratch** explored server-side request processing and persistence.
+
+**React From Principles** explored frontend rendering, state, interactions, and component architecture.
+
+**Fullstack From Principles** explores the boundary between them:
 
 ```text
-user interaction
-↓
-event handler
-↓
-feature hook
-↓
-validation / state transition
-↓
-shared or local React state
-↓
-derived data
-↓
-component render
-↓
-browser UI
-```
-
-It also represents a progression from the previous project.
-
-**HTTP From Scratch** explored what happens behind the server-side abstractions of a web application.
-
-**React From Principles** explores what happens behind the frontend abstractions.
-
-The next stage is to join those two mental models together in a full-stack application:
-
-```text
-React UI
-↓
+User interaction
+      |
+      v
+React state and validation
+      |
+      v
 HTTP request
-↓
-server
-↓
-authentication / authorization
-↓
-application logic
-↓
-database
-↓
+      |
+      v
+Server validation
+      |
+      v
+Authentication and authorization
+      |
+      v
+PostgreSQL
+      |
+      v
 HTTP response
-↓
-client state
-↓
-React render
+      |
+      v
+Client state reconciliation
+      |
+      v
+Updated interface
 ```
 
-That project will replace browser-local persistence with real server-side persistence and introduce database-backed CRUD, authentication, authorization, client/server validation, server state, and production-oriented full-stack architecture.
+The most important outcome is a clearer understanding of where data lives, which layer is responsible for each decision, and how to maintain correct application behavior when requests, sessions, and persistence can fail.
 
 ## License
 
